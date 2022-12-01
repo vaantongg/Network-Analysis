@@ -1,0 +1,106 @@
+---
+title: "Network_paper3"
+author: "Van Tong"
+date: "14/04/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+####LOAD DATA
+```{r}
+mt09 <- read.csv("~/Desktop/MRP/1.Data for rmd3/mt09.csv", stringsAsFactors=TRUE)
+mt10 <- read.csv("~/Desktop/MRP/1.Data for rmd3/mt10.csv", stringsAsFactors=TRUE)
+mt11 <- read.csv("~/Desktop/MRP/1.Data for rmd3/mt11.csv", stringsAsFactors=TRUE)
+mt12 <- read.csv("~/Desktop/MRP/1.Data for rmd3/mt12.csv", stringsAsFactors=TRUE)
+mt13 <- read.csv("~/Desktop/MRP/1.Data for rmd3/mt13.csv", stringsAsFactors=TRUE)
+mt14 <- read.csv("~/Desktop/MRP/1.Data for rmd3/mt14.csv", stringsAsFactors=TRUE)
+mt15 <- read.csv("~/Desktop/MRP/1.Data for rmd3/mt15.csv", stringsAsFactors=TRUE)
+mt16 <- read.csv("~/Desktop/MRP/1.Data for rmd3/mt16.csv", stringsAsFactors=TRUE)
+mt17 <- read.csv("~/Desktop/MRP/1.Data for rmd3/mt17.csv", stringsAsFactors=TRUE)
+mt18 <- read.csv("~/Desktop/MRP/1.Data for rmd3/mt18.csv", stringsAsFactors=TRUE)
+
+
+rownames(mt09)<-mt09[,1] 
+colnames(mt09)<-c("ccode",rownames(mt09))
+mt09[is.na(mt09)] <- 0
+
+rownames(mt10)<-mt10[,1] 
+mt10=mt10[,-1]
+colnames(mt10)<-rownames(mt10)
+mt10[is.na(mt10)] <- 0
+
+rownames(mt11)<-mt11[,1] 
+mt11=mt11[,-1]
+colnames(mt11)<-rownames(mt11)
+mt11[is.na(mt11)] <- 0
+
+rownames(mt12)<-mt12[,1] 
+mt12=mt12[,-1]
+colnames(mt12)<-rownames(mt12)
+mt12[is.na(mt12)] <- 0
+
+rownames(mt13)<-mt13[,1] 
+mt13=mt13[,-1]
+colnames(mt13)<-rownames(mt13)
+mt13[is.na(mt13)] <- 0
+
+rownames(mt14)<-mt14[,1] 
+mt14=mt14[,-1]
+colnames(mt14)<-rownames(mt14)
+mt14[is.na(mt14)] <- 0
+
+rownames(mt15)<-mt15[,1] 
+mt15=mt15[,-1]
+colnames(mt15)<-rownames(mt15)
+mt15[is.na(mt15)] <- 0
+
+rownames(mt16)<-mt16[,1] 
+mt16=mt16[,-1]
+colnames(mt16)<-rownames(mt16)
+mt16[is.na(mt16)] <- 0
+
+rownames(mt17)<-mt17[,1] 
+mt17=mt17[,-1]
+colnames(mt17)<-rownames(mt17)
+mt17[is.na(mt17)] <- 0
+
+rownames(mt18)<-mt18[,1] 
+mt18=mt18[,-1]
+colnames(mt18)<-rownames(mt18)
+mt18[is.na(mt18)] <- 0
+
+
+dvl.cntr <- as.character(c(171, 193, 156, 128, 176, 436, 158, 542, 196, 142, 576, 144, 146, 528, 112, 111, 124, 184, 122, 172, 174, 132, 178, 136, 137, 138, 182, 184, 918, 960, 935, 423, 939, 944, 941, 946, 181, 964, 968, 936, 961, 134))
+
+under.dvl <- as.character(unique(c(614, 638, 748, 618, 626, 628, 632, 636, 611, 644, 648, 642, 654, 666, 668, 674, 676, 678, 682, 688, 692, 714, 722, 724, 732, 742, 746, 738, 754, 522, 544, 518, 513, 514, 558, 474, 263, 818, 299, 857, 856, 352, 733, 873, 528, 351, 920, 849, 851, 863, 363, 696, 967, 333, 354, 314, 353, 352, 312, 357, 871, 865, 814, 815, 323, 113, 329, 823, 187, 117, 954, 967, 349, 546, 911, 912, 913, 916, 962)))
+
+
+## regional indicator for developing countries
+# africa
+africa.cntr<-as.character(c(612, 469, 682, 686, 732, 744, 622, 626, 628, 634, 642, 646, 618, 632, 634, 611, 644, 664, 674, 714, 746, 738, 614, 616, 666, 676, 684, 688, 728, 199, 754, 698, 638, 748, 624, 662, 648, 652, 656, 654, 668, 692, 694, 722, 724, 742))
+## asia with china and india
+asia.cntr<- as.character(c(516, 522, 532, 536, 544, 548, 948, 518, 566, 542, 576, 528, 578, 582, 513, 514, 429, 556, 558, 564, 524, 419, 433, 436, 439, 443, 446, 449, 453, 456, 463, 186, 466, 474, 924, 534, 158, 193, 196))
+## asia without china and india
+asia.less.china.india<- as.character(c(516, 522, 532, 536, 544, 548, 948, 518, 566, 542, 576, 528, 578, 582, 513, 514, 429, 556, 558, 564, 524, 419, 433, 436, 439, 443, 446, 449, 453, 456, 463, 186, 466, 474))
+# china and india
+china.india <- as.character(c(924, 534))
+# latin america and caribbean
+latin.cntr <- as.character(c(313, 316, 339, 243, 336, 343, 366, 369, 238, 253, 258, 263, 268, 273, 283, 213, 218, 223, 228, 233, 248, 288, 293, 298, 299))
+```
+
+
+```{r}
+##
+dvl.to.dvling.09 <- mt09[,c("ccode",dvl.cntr[-c(which(dvl.cntr=="171"),which(dvl.cntr=="528"))])]
+
+dvl.to.dvling.under.09 <- dvl.to.dvling.09 %>% 
+  filter((ccode %in% dvl.cntr[-c(which(dvl.cntr=="171"),which(dvl.cntr=="528"))]))
+
+setdiff(as.numeric(mt09$ccode), as.numeric(dvl.to.dvling.under.09$ccode))
+setdiff(as.numeric(dvl.cntr), setdiff(as.numeric(mt09$ccode), as.numeric(dvl.to.dvling.under.09$ccode)))
+```
+

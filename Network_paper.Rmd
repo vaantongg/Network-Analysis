@@ -1,0 +1,2117 @@
+---
+title: "POL2578-Term Paper"
+author: "Van Tong"
+date: "03/04/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(countrycode)
+library(igraph)
+```
+
+```{r}
+panel <- read.csv("~/Desktop/MRP/paneldata/CDIS_04-05-2022 04-33-04-01_panel.csv", stringsAsFactors=TRUE)
+#names(panel)
+
+
+panel0 <- panel %>% 
+  rename(inw.debt = "Inward.Debt.Instruments.Positions..Net...Derived..US.Dollars..IIWD_DV_BP6_USD.",
+         inw.direct = "Inward.Direct.Investment.Positions..Derived..US.Dollars..IIW_DV_BP6_USD.",
+         inw.eqt = "Inward.Equity.Positions..Net...Derived..US.Dollars..IIWE_DV_BP6_USD.",
+         ouw.debt = "Outward.Debt.Instruments.Positions..Net...Derived..US.Dollars..IOWD_DV_BP6_USD.",
+         ouw.direct = "Outward.Direct.Investment.Positions..Derived..US.Dollars..IOW_DV_BP6_USD.",
+         ouw.eqt = "Outward.Equity.Positions..Net...Derived..US.Dollars..IOWE_DV_BP6_USD.",
+         ccode1 = "Country.Code",
+         ccode2 = "Counterpart.Country.Code",
+         year = "Time.Period",
+         cname1 = "Country.Name",
+         cname2 = "Counterpart.Country.Name") %>% 
+  select(cname1, ccode1, cname2, ccode2, year, inw.direct, ouw.direct) %>% 
+  na.omit() %>% 
+  mutate(inw.direct=inw.direct/1000000,
+         ouw.direct=ouw.direct/1000000) 
+# %>% mutate_if(is.numeric, round, digits=2) 
+
+panel0 <- panel0 %>% mutate(iso.ccode1 = countrycode(sourcevar = cname1, origin = "country.name", destination = "iso3c")) 
+
+GDPdata <- read.csv("~/Desktop/MRP/API_NY.GDP.MKTP.CD_DS2_en_csv_v2_3930485/API_NY.GDP.MKTP.CD_DS2_en_csv_v2_3930485.csv", stringsAsFactors=TRUE)
+GDP.data.2018 <- GDPdata %>% 
+  mutate(gdp2018.mil=X2018/1000000,
+         year=2018) %>% 
+  select(Country.Code, gdp2018.mil, year) %>% 
+  rename(iso.ccode1="Country.Code")
+
+test1 <- panel0 %>% 
+  filter(year==2009) %>% 
+  mutate(net.inw09 = inw.direct-ouw.direct) %>% 
+  select(cname1, ccode1, cname2, ccode2, iso.ccode1, year, inw.direct, ouw.direct, net.inw09)
+
+test2 <- panel0 %>% 
+  filter(year==2018) 
+test2<-left_join(test2, GDP.data.2018, by=c("iso.ccode1", "year")) %>% 
+mutate(net.inw18 = (inw.direct-ouw.direct)) %>%  #/gdp2018.mil
+  select(cname1, ccode1, cname2, ccode2, iso.ccode1, year, inw.direct, ouw.direct, net.inw18, gdp2018.mil)
+
+test3 <- panel0 %>% 
+  filter(year==2015) %>%
+  mutate(net.inw.15 = inw.direct-ouw.direct) %>% 
+  select(cname1, ccode1, cname2, ccode2, year, inw.direct, ouw.direct, net.inw.15)
+test14 <- panel0 %>% 
+  filter(year==2014) %>%
+  mutate(net.inw.14 = inw.direct-ouw.direct) %>% 
+  select(cname1, ccode1, cname2, ccode2, year, inw.direct, ouw.direct, net.inw.14)
+test10 <- panel0 %>% 
+  filter(year==2010) %>%
+  mutate(net.inw.10 = inw.direct-ouw.direct) %>% 
+  select(cname1, ccode1, cname2, ccode2, year, inw.direct, ouw.direct, net.inw.10)
+test11 <- panel0 %>% 
+  filter(year==2011) %>%
+  mutate(net.inw.11 = inw.direct-ouw.direct) %>% 
+  select(cname1, ccode1, cname2, ccode2, year, inw.direct, ouw.direct, net.inw.11)
+test12 <- panel0 %>% 
+  filter(year==2012) %>%
+  mutate(net.inw.12 = inw.direct-ouw.direct) %>% 
+  select(cname1, ccode1, cname2, ccode2, year, inw.direct, ouw.direct, net.inw.12)
+test16 <- panel0 %>% 
+  filter(year==2016) %>%
+  mutate(net.inw.16 = inw.direct-ouw.direct) %>% 
+  select(cname1, ccode1, cname2, ccode2, year, inw.direct, ouw.direct, net.inw.16)
+test17 <- panel0 %>% 
+  filter(year==2017) %>%
+  mutate(net.inw.17 = (inw.direct-ouw.direct)) %>% 
+  select(cname1, ccode1, cname2, ccode2, year, inw.direct, ouw.direct, net.inw.17)
+test13 <- panel0 %>% 
+  filter(year==2013) %>%
+  mutate(net.inw.13 = inw.direct-ouw.direct) %>% 
+  select(cname1, ccode1, cname2, ccode2, year, inw.direct, ouw.direct, net.inw.13)
+
+
+join.panel<-left_join(test2, test1, by = c("cname1", "cname2")) %>% 
+  na.omit() %>% 
+  mutate(change.inw = net.inw18-net.inw09,
+         iso.ccode1 = iso.ccode1.x) %>%
+  mutate_if(is.numeric, round, digits=2) %>% 
+  select(cname1, ccode1.x, cname2, ccode2.x, iso.ccode1, year.y, year.x, change.inw, inw.direct.x, ouw.direct.x, net.inw09, net.inw18, inw.direct.y, ouw.direct.y) %>% 
+  rename(y09=year.y,
+         y18=year.x,
+         ccode1=ccode1.x,
+         ccode2=ccode2.x, 
+         inw.direct.09 = inw.direct.x,
+         ouw.direct.09 = ouw.direct.x,
+         inw.direct.18 = inw.direct.y,
+         ouw.direct.18 = ouw.direct.y) %>% 
+  select(-c(y09, y18))
+
+join.panel<-left_join(test3, join.panel, by=c("cname1", "cname2")) %>% 
+  na.omit() %>% 
+  mutate_if(is.numeric, round, digits=2) %>% 
+  select(cname1, ccode1.x, cname2, ccode2.x, iso.ccode1, change.inw, net.inw.15, net.inw09, net.inw18, inw.direct.09, ouw.direct.09, inw.direct.18, ouw.direct.18, inw.direct, ouw.direct) %>% 
+  rename(ccode1=ccode1.x,
+         ccode2=ccode2.x,
+         inw.direct.15 = inw.direct,
+         ouw.direct.15 = ouw.direct)
+
+join.panel<-left_join(test10, join.panel, by=c("cname1", "cname2")) %>% 
+  na.omit() %>% 
+  mutate_if(is.numeric, round, digits=2) %>% 
+  select(cname1, ccode1.x, cname2, ccode2.x, iso.ccode1, change.inw, net.inw.15, net.inw09, net.inw18, inw.direct.09, ouw.direct.09, inw.direct.18, ouw.direct.18, inw.direct, ouw.direct, inw.direct.15, ouw.direct.15, net.inw.10) %>% 
+  rename(ccode1=ccode1.x,
+         ccode2=ccode2.x,
+         inw.direct.10 = inw.direct,
+         ouw.direct.10 = ouw.direct)
+
+join.panel<-left_join(test11, join.panel, by=c("cname1", "cname2")) %>% 
+  na.omit() %>% 
+  mutate_if(is.numeric, round, digits=2) %>% 
+  select(cname1, ccode1.x, cname2, ccode2.x, iso.ccode1, change.inw, net.inw.15, net.inw09, net.inw18, inw.direct.09, ouw.direct.09, inw.direct.18, ouw.direct.18, inw.direct, ouw.direct, inw.direct.15, ouw.direct.15, net.inw.10, inw.direct.10, ouw.direct.10, net.inw.11) %>%
+  rename(ccode1=ccode1.x,
+         ccode2=ccode2.x,
+         inw.direct.11 = inw.direct,
+         ouw.direct.11 = ouw.direct)
+
+join.panel<-left_join(test12, join.panel, by=c("cname1", "cname2")) %>% 
+  na.omit() %>% 
+  mutate_if(is.numeric, round, digits=2) %>% 
+  select(cname1, ccode1.x, cname2, ccode2.x, iso.ccode1, change.inw, net.inw.15, net.inw09, net.inw18, inw.direct.09, ouw.direct.09, inw.direct.18, ouw.direct.18, inw.direct, ouw.direct, inw.direct.15, ouw.direct.15, net.inw.10, inw.direct.10, ouw.direct.10, net.inw.11, inw.direct.11, ouw.direct.11, net.inw.12) %>% 
+  rename(ccode1=ccode1.x,
+         ccode2=ccode2.x,
+         inw.direct.12 = inw.direct,
+         ouw.direct.12 = ouw.direct)
+
+join.panel<-left_join(test13, join.panel, by=c("cname1", "cname2")) %>% 
+  na.omit() %>% 
+  mutate_if(is.numeric, round, digits=2) %>% 
+  select(cname1, ccode1.x, cname2, ccode2.x, iso.ccode1, change.inw, net.inw.15, net.inw09, net.inw18, inw.direct.09, ouw.direct.09, inw.direct.18, ouw.direct.18, inw.direct, ouw.direct, inw.direct.15, ouw.direct.15, net.inw.10, inw.direct.10, ouw.direct.10, net.inw.11, inw.direct.11, ouw.direct.11, net.inw.12, inw.direct.12, ouw.direct.12, net.inw.13) %>% 
+  rename(ccode1=ccode1.x,
+         ccode2=ccode2.x,
+         inw.direct.13 = inw.direct,
+         ouw.direct.13 = ouw.direct)
+
+join.panel<-left_join(test14, join.panel, by=c("cname1", "cname2")) %>% 
+  na.omit() %>% 
+  mutate_if(is.numeric, round, digits=2) %>% 
+  select(cname1, ccode1.x, cname2, ccode2.x, iso.ccode1, change.inw, net.inw.15, net.inw09, net.inw18, inw.direct.09, ouw.direct.09, inw.direct.18, ouw.direct.18, inw.direct, ouw.direct, inw.direct.15, ouw.direct.15, net.inw.10, inw.direct.10, ouw.direct.10, net.inw.11, inw.direct.11, ouw.direct.11, net.inw.12, inw.direct.12, ouw.direct.12, net.inw.13, inw.direct.13, ouw.direct.13, net.inw.14) %>% 
+  rename(ccode1=ccode1.x,
+         ccode2=ccode2.x,
+         inw.direct.14 = inw.direct,
+         ouw.direct.14 = ouw.direct)
+
+join.panel<-left_join(test16, join.panel, by=c("cname1", "cname2")) %>% 
+  na.omit() %>% 
+  mutate_if(is.numeric, round, digits=2) %>% 
+  select(cname1, ccode1.x, cname2, ccode2.x, iso.ccode1, change.inw, net.inw.15, net.inw09, net.inw18, inw.direct.09, ouw.direct.09, inw.direct.18, ouw.direct.18, inw.direct, ouw.direct, inw.direct.15, ouw.direct.15, net.inw.10, inw.direct.10, ouw.direct.10, net.inw.11, inw.direct.11, ouw.direct.11, net.inw.12, inw.direct.12, ouw.direct.12, net.inw.13, inw.direct.13, ouw.direct.13, net.inw.14, inw.direct.14, ouw.direct.14, net.inw.16) %>% 
+  rename(ccode1=ccode1.x,
+         ccode2=ccode2.x,
+         inw.direct.16 = inw.direct,
+         ouw.direct.16 = ouw.direct)
+
+join.panel<-left_join(test17, join.panel, by=c("cname1", "cname2")) %>% 
+  na.omit() %>% 
+  mutate_if(is.numeric, round, digits=2) %>% 
+  select(cname1, ccode1.x, cname2, ccode2.x, iso.ccode1, change.inw, net.inw.15, net.inw09, net.inw18, inw.direct.09, ouw.direct.09, inw.direct.18, ouw.direct.18, inw.direct, ouw.direct, inw.direct.15, ouw.direct.15, net.inw.10, inw.direct.10, ouw.direct.10, net.inw.11, inw.direct.11, ouw.direct.11, net.inw.12, inw.direct.12, ouw.direct.12, net.inw.13, inw.direct.13, ouw.direct.13, net.inw.14, inw.direct.14, ouw.direct.14, net.inw.16, inw.direct.16, ouw.direct.16, net.inw.17) %>% 
+  rename(ccode1=ccode1.x,
+         ccode2=ccode2.x,
+         inw.direct.17 = inw.direct,
+         ouw.direct.17 = ouw.direct)
+
+
+library(haven)
+pwt <- read_dta("~/Desktop/MRP/pwt100.dta")
+pwt$countrycode <- as.factor(pwt$countrycode)
+pwt$country <- as.factor(pwt$country)
+pwt0 <- pwt %>% 
+  rename(iso.ccode1 = "countrycode",
+         cname0 = "country",
+         m.gdp = "rgdpna") %>% 
+  select(iso.ccode1, cname0, year, m.gdp, pop) %>% 
+  mutate(b.gdp = m.gdp*1,
+         gdp.perc = b.gdp/pop) %>% 
+  mutate_if(is.numeric, round, digits=2) %>% 
+  filter(year >= 2009) %>% 
+  na.omit %>% 
+  filter(year==2009) %>% 
+  select(iso.ccode1, b.gdp)
+
+
+join.panel1<-left_join(join.panel, pwt0, by = "iso.ccode1") %>% 
+  na.omit() %>% 
+  mutate(scale.down = change.inw/b.gdp) %>% 
+  select(cname1, ccode1, iso.ccode1, cname2, ccode2, change.inw, net.inw09, net.inw.10, net.inw.11, net.inw.12, net.inw.13, net.inw.14, net.inw.15, net.inw.16, net.inw.17, net.inw18, inw.direct.09, inw.direct.10, inw.direct.11, inw.direct.12, inw.direct.13, inw.direct.14, inw.direct.15, inw.direct.16, inw.direct.17, inw.direct.18, b.gdp, scale.down)
+
+```
+
+Argentina, Brazil, Chile, China, Colombia, Egypt, Hungary, India, Indonesia, Iran, Malaysia, Mexico, the Philippines, Poland, Russia, Saudi Arabia, South Africa, Thailand, Turkey, and the United Arab Emirates
+
+```{r}
+#summary(panel0$cname1)
+dvl.cntr <- c(171, 193, 156, 128, 176, 436, 158, 542, 196, 142, 576, 144, 146, 528, 112, 111, 124, 184, 122, 172, 174, 132, 178, 136, 137, 138, 182, 184, 918, 960, 935, 423, 939, 944, 941, 946, 181, 964, 968, 936, 961, 134)
+
+#emg.cntr <- c("Argentina", "Brazil", "Chile", "China", "Colombia", "Egypt", "Hungary", "India", "Indonesia", "Iran", "Malaysia", "Mexico", "the Philippines", "Poland", "Russia", "Saudi Arabia", "South Africa", "Thailand", "Turkey", "United Arab Emirates", "Vietnam")
+
+under.dvl <- unique(c(614, 638, 748, 618, 626, 628, 632, 636, 611, 644, 648, 642, 654, 666, 668, 674, 676, 678, 682, 688, 692, 714, 722, 724, 732, 742, 746, 738, 754, 522, 544, 518, 513, 514, 558, 474, 263, 818, 299, 857, 856, 352, 733, 873, 528, 351, 920, 849, 851, 863, 363, 696, 967, 333, 354, 314, 353, 352, 312, 357, 871, 865, 814, 815, 323, 113, 329, 823, 187, 117, 954, 967, 349, 546, 911, 912, 913, 916, 962))
+
+under.dvl.cntr <- unique(c(546, 911, 912, 913, 916, 962))
+
+#under.dvl.cntr2 <- unique(c(614, 638, 748, 618, 626, 628, 632, 636, 611, 644, 648, 642, 654, 666, 668, 674, 676, 678, 682, 688, 692, 714, 722, 724, 732, 742, 746, 738, 754, 522, 544, 518, 513, 514, 558, 474, 263, 818, 299, 857, 856, 352, 733, 873, 528, 351, 920, 849, 851, 863, 363, 696, 967, 333, 354, 314, 353, 352, 312, 357, 871, 865, 814, 815, 323, 113, 329, 823, 187, 117, 954, 967, 349, 546, 911, 912, 913, 916, 962, 837, 872,371,374,887,876))
+
+under.dvl.cntr2 <- unique(c(546, 911, 912, 913, 916, 962))
+
+## regional indicator for developing countries
+# africa
+africa.cntr<-c(612, 469, 682, 686, 732, 744, 622, 626, 628, 634, 642, 646, 618, 632, 634, 611, 644, 664, 674, 714, 746, 738, 614, 616, 666, 676, 684, 688, 728, 199, 754, 698, 638, 748, 624, 662, 648, 652, 656, 654, 668, 692, 694, 722, 724, 742)
+## asia with china and india
+asia.cntr<- c(516, 522, 532, 536, 544, 548, 948, 518, 566, 542, 576, 528, 578, 582, 513, 514, 429, 556, 558, 564, 524, 419, 433, 436, 439, 443, 446, 449, 453, 456, 463, 186, 466, 474, 924, 534, 158, 193, 196)
+## asia without china and india
+asia.less.china.india<- c(516, 522, 532, 536, 544, 548, 948, 518, 566, 542, 576, 528, 578, 582, 513, 514, 429, 556, 558, 564, 524, 419, 433, 436, 439, 443, 446, 449, 453, 456, 463, 186, 466, 474)
+# china and india
+china.india <- c(924, 534)
+# latin america and caribbean
+latin.cntr <- c(313, 316, 339, 243, 336, 343, 366, 369, 238, 253, 258, 263, 268, 273, 283, 213, 218, 223, 228, 233, 248, 288, 293, 298, 299)
+
+join.panel1 <- join.panel1 %>% 
+  filter(cname1!="World", cname1!="Europe", cname1!="North and Central America", cname1!="North Atlantic and Caribbean", cname1!="Central and South Asia", cname1!="Sub-Saharan Africa", cname1!="East Asia", cname1!="Economies of Persian Gulf", cname1!="Not Specified (including Confidential)", cname1!="Oceania and Polar Regions", cname1!="South America", cname1!="Other Near and Middle East Economies", cname1!="North Africa", cname1!="Russian Federation", cname1!="British Virgin Islands", cname2!="World", cname2!="Europe", cname2!="North and Central America", cname2!="North Atlantic and Caribbean", cname2!="Central and South Asia", cname2!="Sub-Saharan Africa", cname2!="East Asia", cname2!="Economies of Persian Gulf", cname2!="Not Specified (including Confidential)", cname2!="Oceania and Polar Regions", cname2!="South America", cname2!="Other Near and Middle East Economies", cname2!="North Africa", cname2!="Russian Federation", cname2!="British Virgin Islands") %>% 
+  mutate(dvl=ifelse(ccode1 %in% dvl.cntr, 1, 0),
+         under.dvl.cntr=ifelse(ccode1 %in% under.dvl.cntr, 1, 0),
+         under.dvl.cntr2=ifelse(ccode2 %in% under.dvl.cntr2, 1, 0),
+         afri=ifelse(ccode1 %in% africa.cntr, 1, 0),
+         asia=ifelse(ccode1 %in% asia.cntr, 1, 0),
+         latin=ifelse(ccode1 %in% latin.cntr, 1, 0),
+         cna.idn=ifelse(ccode1 %in% china.india, 1, 0)) %>% 
+  filter(under.dvl.cntr==0,
+         under.dvl.cntr2==0) %>% 
+  filter(dvl==1|afri==1|asia==1|latin==1|cna.idn==1)
+
+```
+
+################### TEST ON 2009 ######################################
+```{r}
+panel09 <- panel1 %>% 
+  filter(year==2009) %>%
+  select(ccode1, ccode2, ouw.direct) 
+
+#length(unique(panel1$ccode1[panel1$year==2009]))
+#length(unique(panel1$ccode1[panel1$year==2010]))
+cntr <- unique(panel1$ccode1) %>% as.data.frame()
+Sys.time()
+for (country in cntr[,1]) {
+  a<-panel09 %>% filter(ccode1==country) %>% select(ccode2)
+  comp_set <- setdiff(cntr[,1], a[,1])
+  #library(Hmisc)
+  for (country1 in comp_set){
+    panel09[nrow(panel09)+1,]<-c(country, country1, NA)
+    }
+}
+Sys.time()
+
+
+ouwMat <- panel09 %>%
+  spread(ccode2, ouw.direct, drop=FALSE, fill=NA) %>%
+  data.matrix()
+
+rownames(ouwMat) <- sort(cntr[,1])
+ouwMat <- ouwMat[,-1]
+ouwMat[is.na(ouwMat)] <- 0
+diag(ouwMat) <- NA
+#isSymmetric(defMat)
+
+#ouwMat[1:10,1:10]
+#if edge has negative values, assign 0
+ouwMat[ouwMat<0] <- 0
+```
+#################### 2009 - end block#####################################
+
+### function
+```{r}
+#addToDF <- function(df1, df2){
+# nrow1 <- nrow(df1)
+# nrow2 <- nrow(df2)
+# if(nrow1 < nrow2){
+#   nrow2 <- nrow1
+# }else if(nrow1 > nrow2){
+#   df2[(nrow2+1):nrow1, ] <- NA
+# }
+# cbind(df1,df2)
+#}
+#cnt.df <- addToDF(cntries, cnt) %>% na.omit()
+#colnames(cnt.df) <- c("cnt1", "cnt2")
+```
+
+######### TEST NETWORK OBJECT ##############
+```{r}
+#library(tidyr)
+library(igraph)
+library(sna)
+
+g <- igraph::graph_from_adjacency_matrix(ouwMat, mode="directed", diag=FALSE, weighted=TRUE)
+V(g)$size <- igraph::degree(g)
+g <- igraph::delete.vertices(g , which(igraph::degree(g)==0))
+#V(g)$label<-NA
+# create igraph object.
+
+
+#################### Network Object #########################
+A <- igraph::as_adjacency_matrix(g)
+v.attrs <- igraph::as_data_frame(g, what="both")
+
+g.s <- network::as.network(as.matrix(A), directed=TRUE)
+#set.network.attribute(g.s, "ouw", panel09$ouw.direct)
+#network::set.vertex.attribute(g.s, "weight",
+#                              panel09$ouw.direct)
+network::set.edge.attribute(g.s, "weight",
+                              panel09$ouw.direct)
+V(g)$names <- g.s %v% "vertex.names"
+V(g)$weig <- g.s %v% "weight"
+plot(g.s)
+as.matrix(g.s, attrname = "weight")[1:10,1:10]
+
+# compute a clustering for node colors
+#V(g)$clu <- as.character(membership(cluster_louvain(g)))
+# compute degree as node size
+
+got_palette <- c(
+  "#1A5878", "#C44237", "#AD8941", "#E99093",
+  "#50594B", "#8968CD", "#9ACD32")
+################################ End Block ############################3
+
+
+
+
+
+
+library(network)
+library(ITNr)
+
+
+
+
+#par(mfrow=c(1,2))
+#autograph(g.s)
+#autograph(g)
+
+
+
+
+library(snahelper)
+ggraph(g, layout = "centrality", cent = graph.strength(g)) +
+  geom_edge_link0(aes(edge_width = E(g)$weight), edge_colour = "grey66") +
+  geom_node_point(aes(size = size), shape = 21) +
+  geom_node_text(aes(size = size, label = names), family = "serif") +
+  scale_edge_width_continuous(range = c(0.2, 0.9)) +
+  scale_size_continuous(range = c(1, 8)) +
+  scale_fill_manual(values = got_palette) +
+  coord_fixed() +
+  theme_graph() +
+  theme(legend.position = "none")
+
+
+library(ggraph)
+par(mfrow=c(1,2))
+V(g)$size <- igraph::degree(g, mode = "out")
+ggraph(g, layout = "stress") +
+  geom_edge_link0(aes(edge_width = E(g)$weight), edge_colour = "grey66") +
+  geom_node_point(aes(size = size), shape = 21) +
+  geom_node_text(aes(filter = size >= 26, label = name), family = "serif") +
+  scale_fill_manual(values = got_palette) +
+  scale_edge_width(range = c(0.2, 3)) +
+  scale_size(range = c(1, 6)) +
+  theme_graph() +
+  theme(legend.position = "none")
+
+
+V(g)$size <- degree(g, mode = "in")
+ggraph(g, layout = "stress") +
+  geom_edge_link0(aes(edge_width = E(g)$weight), edge_colour = "grey66") +
+  geom_node_point(aes(size = size), shape = 21) +
+  geom_node_text(aes(filter = size >= 26, label = name), family = "serif") +
+  scale_fill_manual(values = got_palette) +
+  scale_edge_width(range = c(0.2, 3)) +
+  scale_size(range = c(1, 6)) +
+  theme_graph() +
+  theme(legend.position = "none")
+
+
+
+####################################
+panel09.test1 <- panel09 
+panel09.test1$ouw.direct[panel09.test$ouw.direct<0] <- 0
+panel09.test2 <- panel09.test1 %>% select(-ouw.direct)
+pn09.test.edgelist <- as.matrix(panel09.test2)
+pn09.test.nw <- graph.edgelist(pn09.test.edgelist, directed=TRUE)
+
+
+
+t = as.network(ouwMat, matrix.type = "adjacency", directed = TRUE, ignore.eval=FALSE, names.eval='weight')
+summary(t)
+get.edge.value(t, "weight")
+plot(t)
+
+
+```
+
+########################### TEST ON SMALL SAMPLE #############################
+```{r}
+panel09 <- panel1 %>% 
+  filter(year==2009) %>%
+  select(ccode1, ccode2, ouw.direct) 
+
+test.ag <- panel09 %>% 
+  filter(ouw.direct>100) %>% na.omit(ouw.direct)
+
+#length(unique(panel1$ccode1[panel1$year==2009]))
+#length(unique(panel1$ccode1[panel1$year==2010]))
+test.cntr <- unique(test.ag$ccode1) %>% as.data.frame()
+Sys.time()
+for (country in test.cntr[,1]) {
+  a<-test.ag %>% filter(ccode1==country) %>% select(ccode2)
+  comp_set <- setdiff(test.cntr[,1], a[,1])
+  for (country1 in comp_set){
+    test.ag[nrow(test.ag)+1,]<-c(country, country1, NA)
+    }
+}
+Sys.time()
+
+mt <- test.ag %>%
+  spread(ccode2, ouw.direct, drop=FALSE, fill=NA) %>%
+  data.matrix()
+
+rownames(mt) <- sort(test.cntr[,1])
+mt <- mt[,-1]
+mt[is.na(mt)] <- 0
+diag(mt) <- NA
+mt[mt<0] <- 0
+mt <- mt[,-c(13,14,16)]
+  
+
+t <- igraph::graph_from_adjacency_matrix(mt, mode="directed", diag=FALSE, weighted=TRUE)
+V(t)$size <- igraph::degree(t, mode = "out")
+
+igraph::evcent(t)$vector
+V(t)$eigenvector <- igraph::evcent(t)$vector
+t <- igraph::delete.vertices(t , which(igraph::degree(g)==0))
+
+par(mfrow=c(1,2))
+ggraph(t, layout = "stress") +
+  geom_edge_link0(aes(edge_width = E(t)$weight), edge_colour = "grey66") +
+  geom_node_point(aes(size = size), shape = 21) +
+  geom_node_text(aes(filter = size >= 26, label = name), family = "serif") +
+  scale_fill_manual(values = got_palette) +
+  scale_edge_width(range = c(0.2, 3)) +
+  scale_size(range = c(1, 6)) +
+  theme_graph() +
+  theme(legend.position = "none")
+ggraph(t, layout = "stress") +
+  geom_edge_link0(aes(edge_width = E(t)$weight), edge_colour = "grey66") +
+  geom_node_point(aes(size = eigenvector), shape = 21) +
+  geom_node_text(aes(label = name), family = "serif") +
+  scale_fill_manual(values = got_palette) +
+  scale_edge_width(range = c(0.2, 3)) +
+  scale_size(range = c(1, 6)) +
+  theme_graph() +
+  theme(legend.position = "none")
+
+```
+####################### End Draft 1 ######################
+
+
+####################### MAIN 2009 ######################
+```{r}
+df09<- join.panel1 %>% 
+  select(ccode1, ccode2, inw.direct.09)
+ct09 <- unique(df09$ccode1) %>% as.data.frame()
+Sys.time()
+for (country in ct09[,1]) {
+  a<-df09 %>% filter(ccode1==country) %>% select(ccode2)
+  comp_set <- setdiff(ct09[,1], a[,1])
+  for (country1 in comp_set){
+    df09[nrow(df09)+1,]<-c(country, country1, NA)
+    }
+}
+Sys.time()
+
+
+df09.mt <- df09 %>%
+  spread(ccode2, inw.direct.09, drop=FALSE, fill=NA) %>%
+  data.matrix()
+
+rownames(df09.mt) <- sort(ct09[,1])
+df09.mt <- df09.mt[,-1]
+df09.mt[is.na(df09.mt)] <- 0
+diag(df09.mt) <- NA
+isSymmetric(df09.mt)
+
+write.csv(df09.mt, "~/Desktop/MRP/1.Data for rmd3/mt09.csv")
+#df09.mt <- df09.mt[,-c(65,73,97:100,106)] ##drop column 78 and 113
+
+
+#######
+df09.2<- join.panel1 %>% 
+  select(ccode1, ccode2, net.inw09)
+ct09.2 <- unique(df09.2$ccode1) %>% as.data.frame()
+Sys.time()
+for (country in ct09.2[,1]) {
+  a<-df09.2 %>% filter(ccode1==country) %>% select(ccode2)
+  comp_set <- setdiff(ct09.2[,1], a[,1])
+  for (country1 in comp_set){
+    df09.2[nrow(df09.2)+1,]<-c(country, country1, NA)
+    }
+}
+Sys.time()
+
+
+df09.2.mt <- df09.2 %>%
+  spread(ccode2, net.inw09, drop=FALSE, fill=NA) %>%
+  data.matrix()
+
+rownames(df09.2.mt) <- sort(ct09.2[,1])
+cntr.for.color.09 <- as.numeric(rownames(df09.2.mt))
+df09.2.mt <- df09.2.mt[,-1]
+df09.2.mt[is.na(df09.2.mt)] <- 0
+diag(df09.2.mt) <- NA
+isSymmetric(df09.2.mt)
+#df09.2.mt <- df09.2.mt[,-c(65,73,97:100,106)]
+
+#####
+
+g.09 <- igraph::graph_from_adjacency_matrix(as.matrix(df09.mt), mode="undirected", diag=FALSE, weighted=TRUE)
+
+#plot(df1.t, vertex.size = igraph::V(df1.t)$size.inw)
+igraph::V(g.09)$inw <- rowSums(df09.2.mt, na.rm=TRUE) #+ abs(min(rowSums(df2.mt, na.rm=TRUE)))+1)
+igraph::V(g.09)$inw[igraph::V(g.09)$inw<0] <- 0
+igraph::E(g.09)$weight[igraph::E(g.09)$weight<0] <- 0
+igraph::V(g.09)$size.in <- igraph::degree(g.09, mode = "in")
+igraph::V(g.09)$size.out <- igraph::degree(g.09, mode = "out")
+igraph::V(g.09)$eigen <- igraph::evcent(g.09, directed=TRUE, weights=E(g.09)$weight)$vector
+#net inward
+igraph::V(g.09)$net <- rowSums(df09.2.mt, na.rm=TRUE)
+
+igraph::V(g.09)$color <- ifelse(cntr.for.color.09 %in% dvl.cntr, 1, 0)
+
+
+iso3c.09<-as.data.frame(igraph::V(g.09)$name)
+iso3c.09<-iso3c.09 %>% 
+  mutate(cc=countrycode(sourcevar = as.character(igraph::V(g.09)$name), origin = "imf", destination = "iso3c", nomatch = NULL)) %>% 
+  select(cc)
+igraph::V(g.09)$names <- as.array(iso3c.09[,1])
+
+g.09 <- igraph::delete.vertices(g.09 , which(igraph::degree(g.09)==0))
+
+got_palette <- c(
+  "#1A5878", "#C44237", "#AD8941", "#E99093",
+  "#50594B", "#8968CD", "#9ACD32"
+)
+
+
+igraph::E(g.09)$color.edge <- ifelse(cntr.for.color.09 %in% dvl.cntr, 1, 0)
+
+library(ggraph)
+#par(mfrow=c(1,2))
+ggraph(g.09, layout = "stress") +
+  geom_edge_link0(aes(edge_width = igraph::E(g.09)$weight), edge_colour = adjustcolor(1, alpha.f = 0.15)) +
+  geom_node_point(aes(fill=ifelse(igraph::V(g.09)$color==1, "red", "green"), size = igraph::V(g.09)$inw), stroke=0, shape = 21) +
+  geom_node_text(aes(filter=igraph::V(g.09)$inw>30000, label = names), family = "mono") +
+  scale_fill_manual(values = got_palette) +
+  scale_edge_width(range = c(0.2, 3)) +
+  scale_size(range = c(1, 6)) +
+  theme_graph() +
+  theme(legend.position = "none",
+        plot.title = element_text(size = 10, color = 'black', family="Helvetica")) +
+  labs(title = "All countries - 2009")
+#ouwMat[1:10,1:10]
+#if edge has negative values, assign 0
+#ouwMat[ouwMat<0] <- 0
+
+#A <- igraph::as_adjacency_matrix(df1.mt)
+#v.attrs <- igraph::as_data_frame(g, what="both")
+#library(graphlayouts)
+#library(oaqc)
+#library(threejs)
+```
+####################### END MAIN 2009 ######################
+
+
+####################### MAIN 2010 ######################
+```{r}
+df10<- join.panel1 %>% 
+  select(ccode1, ccode2, inw.direct.10)
+ct10 <- unique(df10$ccode1) %>% as.data.frame()
+Sys.time()
+for (country in ct10[,1]) {
+  a<-df10 %>% filter(ccode1==country) %>% select(ccode2)
+  comp_set <- setdiff(ct10[,1], a[,1])
+  for (country1 in comp_set){
+    df10[nrow(df10)+1,]<-c(country, country1, NA)
+    }
+}
+Sys.time()
+
+
+df10.mt <- df10 %>%
+  spread(ccode2, inw.direct.10, drop=FALSE, fill=NA) %>%
+  data.matrix()
+
+rownames(df10.mt) <- sort(ct10[,1])
+df10.mt <- df10.mt[,-1]
+df10.mt[is.na(df10.mt)] <- 0
+diag(df10.mt) <- NA
+isSymmetric(df10.mt)
+
+write.csv(df10.mt, "~/Desktop/MRP/1.Data for rmd3/mt10.csv")
+
+#write.csv(df.mt, "~/Desktop/MRP/1.Data for rmd3/mt.csv")
+
+
+#df10.mt <- df10.mt[,-c(65,73,97:100,106)] ##drop countries that do not match to ccode1, making the matrix not squared
+
+
+#######
+df10.2<- join.panel1 %>% 
+  select(ccode1, ccode2, net.inw.10)
+ct10.2 <- unique(df10.2$ccode1) %>% as.data.frame()
+Sys.time()
+for (country in ct10.2[,1]) {
+  a<-df10.2 %>% filter(ccode1==country) %>% select(ccode2)
+  comp_set <- setdiff(ct10.2[,1], a[,1])
+  for (country1 in comp_set){
+    df10.2[nrow(df10.2)+1,]<-c(country, country1, NA)
+    }
+}
+Sys.time()
+
+
+df10.2.mt <- df10.2 %>%
+  spread(ccode2, net.inw.10, drop=FALSE, fill=NA) %>%
+  data.matrix()
+
+rownames(df10.2.mt) <- sort(ct10.2[,1])
+cntr.for.color.10 <- as.numeric(rownames(df10.2.mt))
+df10.2.mt <- df10.2.mt[,-1]
+df10.2.mt[is.na(df10.2.mt)] <- 0
+diag(df10.2.mt) <- NA
+isSymmetric(df10.2.mt)
+#df10.2.mt <- df10.2.mt[,-c(65,73,97:100,106)]
+
+###############
+
+g.10 <- igraph::graph_from_adjacency_matrix(as.matrix(df10.mt), mode="undirected", diag=FALSE, weighted=TRUE)
+
+#plot(df1.t, vertex.size = igraph::V(df1.t)$size.inw)
+igraph::V(g.10)$inw <- rowSums(df10.2.mt, na.rm=TRUE) #+ abs(min(rowSums(df2.mt, na.rm=TRUE)))+1)
+igraph::V(g.10)$inw[igraph::V(g.10)$inw<0] <- 0
+igraph::E(g.10)$weight[igraph::E(g.10)$weight<0] <- 0
+igraph::V(g.10)$size.in <- igraph::degree(g.10, mode = "in")
+igraph::V(g.10)$size.out <- igraph::degree(g.10, mode = "out")
+igraph::V(g.10)$eigen <- igraph::evcent(g.10, directed=TRUE, weights=E(g.10)$weight)$vector
+
+
+
+# color attr
+igraph::V(g.10)$color <- ifelse(cntr.for.color.10 %in% dvl.cntr, 1, 0)
+# label attr
+iso3c.10<-as.data.frame(igraph::V(g.10)$name)
+iso3c.10<-iso3c.10 %>% 
+  mutate(cc=countrycode(sourcevar = as.character(igraph::V(g.10)$name), origin = "imf", destination = "iso3c", nomatch = NULL)) %>% 
+  select(cc)
+igraph::V(g.10)$names <- as.array(iso3c.10[,1])
+
+g.10 <- igraph::delete.vertices(g.10 , which(igraph::degree(g.10)==0))
+
+got_palette <- c(
+  "#1A5878", "#C44237", "#AD8941", "#E99093",
+  "#50594B", "#8968CD", "#9ACD32"
+)
+
+library(ggraph)
+#par(mfrow=c(1,2))
+ggraph(g.10, layout = "stress") +
+  geom_edge_link0(aes(edge_width = igraph::E(g.10)$weight), edge_colour = adjustcolor(1, alpha.f = 0.15)) +
+  geom_node_point(aes(fill=ifelse(igraph::V(g.10)$color==1, "red", "green"), size = igraph::V(g.10)$inw), stroke=0, shape = 21) +
+  geom_node_text(aes(filter=igraph::V(g.10)$inw>30000, label = names), family = "mono") +
+  scale_fill_manual(values = got_palette) +
+  scale_edge_width(range = c(0.2, 3)) +
+  scale_size(range = c(1, 6)) +
+  theme_graph() +
+  theme(legend.position = "none",
+        plot.title = element_text(size = 10, color = 'black', family="Helvetica")) +
+  labs(title = "All countries - 2010") 
+```
+#################### END MAIN 2010 #######################
+
+
+####################### MAIN 2011 ######################
+```{r}
+df11<- join.panel1 %>% 
+  select(ccode1, ccode2, inw.direct.11)
+ct11 <- unique(df11$ccode1) %>% as.data.frame()
+Sys.time()
+for (country in ct11[,1]) {
+  a<-df11 %>% filter(ccode1==country) %>% select(ccode2)
+  comp_set <- setdiff(ct11[,1], a[,1])
+  for (country1 in comp_set){
+    df11[nrow(df11)+1,]<-c(country, country1, NA)
+    }
+}
+Sys.time()
+
+
+df11.mt <- df11 %>%
+  spread(ccode2, inw.direct.11, drop=FALSE, fill=NA) %>%
+  data.matrix()
+
+rownames(df11.mt) <- sort(ct11[,1])
+df11.mt <- df11.mt[,-1]
+df11.mt[is.na(df11.mt)] <- 0
+diag(df11.mt) <- NA
+isSymmetric(df11.mt)
+#df11.mt <- df11.mt[,-c(65,73,97:100,106)] ##drop countries that do not match to ccode1, making the matrix not squared
+write.csv(df11.mt, "~/Desktop/MRP/1.Data for rmd3/mt11.csv")
+
+
+#######
+df11.2<- join.panel1 %>% 
+  select(ccode1, ccode2, net.inw.11)
+ct11.2 <- unique(df11.2$ccode1) %>% as.data.frame()
+Sys.time()
+for (country in ct11.2[,1]) {
+  a<-df11.2 %>% filter(ccode1==country) %>% select(ccode2)
+  comp_set <- setdiff(ct11.2[,1], a[,1])
+  for (country1 in comp_set){
+    df11.2[nrow(df11.2)+1,]<-c(country, country1, NA)
+    }
+}
+Sys.time()
+
+
+df11.2.mt <- df11.2 %>%
+  spread(ccode2, net.inw.11, drop=FALSE, fill=NA) %>%
+  data.matrix()
+
+rownames(df11.2.mt) <- sort(ct11.2[,1])
+cntr.for.color.11 <- as.numeric(rownames(df11.2.mt))
+df11.2.mt <- df11.2.mt[,-1]
+df11.2.mt[is.na(df11.2.mt)] <- 0
+diag(df11.2.mt) <- NA
+isSymmetric(df11.2.mt)
+#df11.2.mt <- df11.2.mt[,-c(65,73,97:100,106)]
+
+###############
+
+g.11 <- igraph::graph_from_adjacency_matrix(as.matrix(df11.mt), mode="undirected", diag=FALSE, weighted=TRUE)
+
+#plot(df1.t, vertex.size = igraph::V(df1.t)$size.inw)
+igraph::V(g.11)$inw <- rowSums(df11.2.mt, na.rm=TRUE) #+ abs(min(rowSums(df2.mt, na.rm=TRUE)))+1)
+igraph::V(g.11)$inw[igraph::V(g.11)$inw<0] <- 0
+igraph::E(g.11)$weight[igraph::E(g.11)$weight<0] <- 0
+igraph::V(g.11)$size.in <- igraph::degree(g.11, mode = "in")
+igraph::V(g.11)$size.out <- igraph::degree(g.11, mode = "out")
+igraph::V(g.11)$eigen <- igraph::evcent(g.11, directed=TRUE, weights=E(g.11)$weight)$vector
+
+
+
+# color attr
+igraph::V(g.11)$color <- ifelse(cntr.for.color.11 %in% dvl.cntr, 1, 0)
+# label attr
+iso3c.11<-as.data.frame(igraph::V(g.11)$name)
+iso3c.11<-iso3c.11 %>% 
+  mutate(cc=countrycode(sourcevar = as.character(igraph::V(g.11)$name), origin = "imf", destination = "iso3c", nomatch = NULL)) %>% 
+  select(cc)
+igraph::V(g.11)$names <- as.array(iso3c.11[,1])
+
+g.11 <- igraph::delete.vertices(g.11 , which(igraph::degree(g.11)==0))
+
+got_palette <- c(
+  "#1A5878", "#C44237", "#AD8941", "#E99093",
+  "#50594B", "#8968CD", "#9ACD32"
+)
+
+library(ggraph)
+#par(mfrow=c(1,2))
+ggraph(g.11, layout = "stress") +
+  geom_edge_link0(aes(edge_width = igraph::E(g.11)$weight), edge_colour = adjustcolor(1, alpha.f = 0.15)) +
+  geom_node_point(aes(fill=ifelse(igraph::V(g.11)$color==1, "red", "green"), size = igraph::V(g.11)$inw), stroke=0, shape = 21) +
+  geom_node_text(aes(filter=igraph::V(g.11)$inw>30000, label = names), family = "mono") +
+  scale_fill_manual(values = got_palette) +
+  scale_edge_width(range = c(0.2, 3)) +
+  scale_size(range = c(1, 6)) +
+  theme_graph() +
+  theme(legend.position = "none",
+        plot.title = element_text(size = 10, color = 'black', family="Helvetica")) +
+  labs(title = "All countries - 2011")
+```
+#################### END MAIN 2011 #######################
+
+####################### MAIN 2012 ######################
+```{r}
+df12<- join.panel1 %>% 
+  select(ccode1, ccode2, inw.direct.12)
+ct12 <- unique(df12$ccode1) %>% as.data.frame()
+Sys.time()
+for (country in ct12[,1]) {
+  a<-df12 %>% filter(ccode1==country) %>% select(ccode2)
+  comp_set <- setdiff(ct12[,1], a[,1])
+  for (country1 in comp_set){
+    df12[nrow(df12)+1,]<-c(country, country1, NA)
+    }
+}
+Sys.time()
+
+
+df12.mt <- df12 %>%
+  spread(ccode2, inw.direct.12, drop=FALSE, fill=NA) %>%
+  data.matrix()
+
+rownames(df12.mt) <- sort(ct12[,1])
+df12.mt <- df12.mt[,-1]
+df12.mt[is.na(df12.mt)] <- 0
+diag(df12.mt) <- NA
+isSymmetric(df12.mt)
+#df12.mt <- df12.mt[,-c(65,73,97:100,106)] ##drop countries that do not match to ccode1, making the matrix not squared
+write.csv(df12.mt, "~/Desktop/MRP/1.Data for rmd3/mt12.csv")
+
+
+#######
+df12.2<- join.panel1 %>% 
+  select(ccode1, ccode2, net.inw.12)
+ct12.2 <- unique(df12.2$ccode1) %>% as.data.frame()
+Sys.time()
+for (country in ct12.2[,1]) {
+  a<-df12.2 %>% filter(ccode1==country) %>% select(ccode2)
+  comp_set <- setdiff(ct12.2[,1], a[,1])
+  for (country1 in comp_set){
+    df12.2[nrow(df12.2)+1,]<-c(country, country1, NA)
+    }
+}
+Sys.time()
+
+
+df12.2.mt <- df12.2 %>%
+  spread(ccode2, net.inw.12, drop=FALSE, fill=NA) %>%
+  data.matrix()
+
+rownames(df12.2.mt) <- sort(ct11.2[,1])
+cntr.for.color.12 <- as.numeric(rownames(df12.2.mt))
+df12.2.mt <- df12.2.mt[,-1]
+df12.2.mt[is.na(df12.2.mt)] <- 0
+diag(df12.2.mt) <- NA
+isSymmetric(df12.2.mt)
+#df12.2.mt <- df12.2.mt[,-c(65,73,97:100,106)]
+
+###############
+
+g.12 <- igraph::graph_from_adjacency_matrix(as.matrix(df12.mt), mode="undirected", diag=FALSE, weighted=TRUE)
+
+#plot(df1.t, vertex.size = igraph::V(df1.t)$size.inw)
+igraph::V(g.12)$inw <- rowSums(df12.2.mt, na.rm=TRUE) #+ abs(min(rowSums(df2.mt, na.rm=TRUE)))+1)
+igraph::V(g.12)$inw[igraph::V(g.12)$inw<0] <- 0
+igraph::E(g.12)$weight[igraph::E(g.12)$weight<0] <- 0
+igraph::V(g.12)$size.in <- igraph::degree(g.12, mode = "in")
+igraph::V(g.12)$size.out <- igraph::degree(g.12, mode = "out")
+igraph::V(g.12)$eigen <- igraph::evcent(g.12, directed=TRUE, weights=E(g.12)$weight)$vector
+
+
+
+# color attr
+igraph::V(g.12)$color <- ifelse(cntr.for.color.12 %in% dvl.cntr, 1, 0)
+# label attr
+iso3c.12<-as.data.frame(igraph::V(g.12)$name)
+iso3c.12<-iso3c.12 %>% 
+  mutate(cc=countrycode(sourcevar = as.character(igraph::V(g.12)$name), origin = "imf", destination = "iso3c", nomatch = NULL)) %>% 
+  select(cc)
+igraph::V(g.12)$names <- as.array(iso3c.12[,1])
+
+g.12 <- igraph::delete.vertices(g.12 , which(igraph::degree(g.12)==0))
+
+got_palette <- c(
+  "#1A5878", "#C44237", "#AD8941", "#E99093",
+  "#50594B", "#8968CD", "#9ACD32"
+)
+
+library(ggraph)
+#par(mfrow=c(1,2))
+ggraph(g.12, layout = "stress") +
+  geom_edge_link0(aes(edge_width = igraph::E(g.12)$weight), edge_colour = adjustcolor(1, alpha.f = 0.15)) +
+  geom_node_point(aes(fill=ifelse(igraph::V(g.12)$color==1, "red", "green"), size = igraph::V(g.12)$inw), stroke=0, shape = 21) +
+  geom_node_text(aes(filter=igraph::V(g.12)$inw>30000, label = names), family = "mono") +
+  scale_fill_manual(values = got_palette) +
+  scale_edge_width(range = c(0.2, 3)) +
+  scale_size(range = c(1, 6)) +
+  theme_graph() +
+  theme(legend.position = "none",
+        plot.title = element_text(size = 10, color = 'black', family="Helvetica")) +
+  labs(title = "All countries - 2012") 
+```
+##################3 END MAIN 2012 #################
+
+
+####################### MAIN 2013 ######################
+```{r}
+df13<- join.panel1 %>% 
+  select(ccode1, ccode2, inw.direct.13)
+ct13 <- unique(df13$ccode1) %>% as.data.frame()
+Sys.time()
+for (country in ct13[,1]) {
+  a<-df13 %>% filter(ccode1==country) %>% select(ccode2)
+  comp_set <- setdiff(ct13[,1], a[,1])
+  for (country1 in comp_set){
+    df13[nrow(df13)+1,]<-c(country, country1, NA)
+    }
+}
+Sys.time()
+
+
+df13.mt <- df13 %>%
+  spread(ccode2, inw.direct.13, drop=FALSE, fill=NA) %>%
+  data.matrix()
+
+rownames(df13.mt) <- sort(ct13[,1])
+df13.mt <- df13.mt[,-1]
+df13.mt[is.na(df13.mt)] <- 0
+diag(df13.mt) <- NA
+isSymmetric(df13.mt)
+#df13.mt <- df13.mt[,-c(65,73,97:100,106)] ##drop countries that do not match to ccode1, making the matrix not squared
+write.csv(df13.mt, "~/Desktop/MRP/1.Data for rmd3/mt13.csv")
+
+
+#######
+df13.2<- join.panel1 %>% 
+  select(ccode1, ccode2, net.inw.13)
+ct13.2 <- unique(df13.2$ccode1) %>% as.data.frame()
+Sys.time()
+for (country in ct13.2[,1]) {
+  a<-df13.2 %>% filter(ccode1==country) %>% select(ccode2)
+  comp_set <- setdiff(ct13.2[,1], a[,1])
+  for (country1 in comp_set){
+    df13.2[nrow(df13.2)+1,]<-c(country, country1, NA)
+    }
+}
+Sys.time()
+
+
+df13.2.mt <- df13.2 %>%
+  spread(ccode2, net.inw.13, drop=FALSE, fill=NA) %>%
+  data.matrix()
+
+rownames(df13.2.mt) <- sort(ct13.2[,1])
+cntr.for.color.13 <- as.numeric(rownames(df13.2.mt))
+df13.2.mt <- df13.2.mt[,-1]
+df13.2.mt[is.na(df13.2.mt)] <- 0
+diag(df13.2.mt) <- NA
+isSymmetric(df13.2.mt)
+#df13.2.mt <- df13.2.mt[,-c(65,73,97:100,106)]
+
+###############
+
+g.13 <- igraph::graph_from_adjacency_matrix(as.matrix(df13.mt), mode="undirected", diag=FALSE, weighted=TRUE)
+
+#plot(df1.t, vertex.size = igraph::V(df1.t)$size.inw)
+igraph::V(g.13)$inw <- rowSums(df13.2.mt, na.rm=TRUE) #+ abs(min(rowSums(df2.mt, na.rm=TRUE)))+1)
+igraph::V(g.13)$inw[igraph::V(g.13)$inw<0] <- 0
+igraph::E(g.13)$weight[igraph::E(g.13)$weight<0] <- 0
+igraph::V(g.13)$size.in <- igraph::degree(g.13, mode = "in")
+igraph::V(g.13)$size.out <- igraph::degree(g.13, mode = "out")
+igraph::V(g.13)$eigen <- igraph::evcent(g.13, directed=TRUE, weights=E(g.13)$weight)$vector
+
+
+
+# color attr
+igraph::V(g.13)$color <- ifelse(cntr.for.color.13 %in% dvl.cntr, 1, 0)
+# label attr
+iso3c.13<-as.data.frame(igraph::V(g.13)$name)
+iso3c.13<-iso3c.13 %>% 
+  mutate(cc=countrycode(sourcevar = as.character(igraph::V(g.13)$name), origin = "imf", destination = "iso3c", nomatch = NULL)) %>% 
+  select(cc)
+igraph::V(g.13)$names <- as.array(iso3c.13[,1])
+
+g.13 <- igraph::delete.vertices(g.13 , which(igraph::degree(g.13)==0))
+
+got_palette <- c(
+  "#1A5878", "#C44237", "#AD8941", "#E99093",
+  "#50594B", "#8968CD", "#9ACD32"
+)
+
+library(ggraph)
+#par(mfrow=c(1,2))
+ggraph(g.13, layout = "stress") +
+  geom_edge_link0(aes(edge_width = igraph::E(g.13)$weight), edge_colour = adjustcolor(1, alpha.f = 0.15)) +
+  geom_node_point(aes(fill=ifelse(igraph::V(g.13)$color==1, "red", "green"), size = igraph::V(g.13)$inw), stroke=0, shape = 21) +
+  geom_node_text(aes(filter=igraph::V(g.13)$inw>30000, label = names), family = "mono") +
+  scale_fill_manual(values = got_palette) +
+  scale_edge_width(range = c(0.2, 3)) +
+  scale_size(range = c(1, 6)) +
+  theme_graph() +
+  theme(legend.position = "none",
+        plot.title = element_text(size = 10, color = 'black', family="Helvetica")) +
+  labs(title = "All countries - 2013") 
+```
+##################3 END MAIN 2013 #################
+
+
+####################### MAIN 2014 ######################
+```{r}
+df14<- join.panel1 %>% 
+  select(ccode1, ccode2, inw.direct.14)
+ct14 <- unique(df14$ccode1) %>% as.data.frame()
+Sys.time()
+for (country in ct14[,1]) {
+  a<-df14 %>% filter(ccode1==country) %>% select(ccode2)
+  comp_set <- setdiff(ct14[,1], a[,1])
+  for (country1 in comp_set){
+    df14[nrow(df14)+1,]<-c(country, country1, NA)
+    }
+}
+Sys.time()
+
+
+df14.mt <- df14 %>%
+  spread(ccode2, inw.direct.14, drop=FALSE, fill=NA) %>%
+  data.matrix()
+
+rownames(df14.mt) <- sort(ct14[,1])
+df14.mt <- df14.mt[,-1]
+df14.mt[is.na(df14.mt)] <- 0
+diag(df14.mt) <- NA
+isSymmetric(df14.mt)
+#df14.mt <- df14.mt[,-c(65,73,97:100,106)] ##drop countries that do not match to ccode1, making the matrix not squared
+write.csv(df14.mt, "~/Desktop/MRP/1.Data for rmd3/mt14.csv")
+
+
+#######
+df14.2<- join.panel1 %>% 
+  select(ccode1, ccode2, net.inw.14)
+ct14.2 <- unique(df14.2$ccode1) %>% as.data.frame()
+Sys.time()
+for (country in ct14.2[,1]) {
+  a<-df14.2 %>% filter(ccode1==country) %>% select(ccode2)
+  comp_set <- setdiff(ct14.2[,1], a[,1])
+  for (country1 in comp_set){
+    df14.2[nrow(df14.2)+1,]<-c(country, country1, NA)
+    }
+}
+Sys.time()
+
+
+df14.2.mt <- df14.2 %>%
+  spread(ccode2, net.inw.14, drop=FALSE, fill=NA) %>%
+  data.matrix()
+
+rownames(df14.2.mt) <- sort(ct14.2[,1])
+cntr.for.color.14 <- as.numeric(rownames(df14.2.mt))
+df14.2.mt <- df14.2.mt[,-1]
+df14.2.mt[is.na(df14.2.mt)] <- 0
+diag(df14.2.mt) <- NA
+isSymmetric(df14.2.mt)
+#df14.2.mt <- df14.2.mt[,-c(65,73,97:100,106)]
+
+###############
+
+g.14 <- igraph::graph_from_adjacency_matrix(as.matrix(df14.mt), mode="undirected", diag=FALSE, weighted=TRUE)
+
+#plot(df1.t, vertex.size = igraph::V(df1.t)$size.inw)
+igraph::V(g.14)$inw <- rowSums(df14.2.mt, na.rm=TRUE) #+ abs(min(rowSums(df2.mt, na.rm=TRUE)))+1)
+igraph::V(g.14)$inw[igraph::V(g.14)$inw<0] <- 0
+igraph::E(g.14)$weight[igraph::E(g.14)$weight<0] <- 0
+igraph::V(g.14)$size.in <- igraph::degree(g.14, mode = "in")
+igraph::V(g.14)$size.out <- igraph::degree(g.14, mode = "out")
+igraph::V(g.14)$eigen <- igraph::evcent(g.14, directed=TRUE, weights=E(g.14)$weight)$vector
+
+
+# color attr
+igraph::V(g.14)$color <- ifelse(cntr.for.color.14 %in% dvl.cntr, 1, 0)
+# label attr
+iso3c.14<-as.data.frame(igraph::V(g.14)$name)
+iso3c.14<-iso3c.14 %>% 
+  mutate(cc=countrycode(sourcevar = as.character(igraph::V(g.14)$name), origin = "imf", destination = "iso3c", nomatch = NULL)) %>% 
+  select(cc)
+igraph::V(g.14)$names <- as.array(iso3c.14[,1])
+
+g.14 <- igraph::delete.vertices(g.14 , which(igraph::degree(g.14)==0))
+
+got_palette <- c(
+  "#1A5878", "#C44237", "#AD8941", "#E99093",
+  "#50594B", "#8968CD", "#9ACD32"
+)
+
+library(ggraph)
+#par(mfrow=c(1,2))
+ggraph(g.14, layout = "stress") +
+  geom_edge_link0(aes(edge_width = igraph::E(g.14)$weight), edge_colour = adjustcolor(1, alpha.f = 0.15)) +
+  geom_node_point(aes(fill=ifelse(igraph::V(g.14)$color==1, "red", "green"), size = igraph::V(g.14)$inw), stroke=0, shape = 21) +
+  geom_node_text(aes(filter=igraph::V(g.14)$inw>30000, label = names), family = "mono") +
+  scale_fill_manual(values = got_palette) +
+  scale_edge_width(range = c(0.2, 3)) +
+  scale_size(range = c(1, 6)) +
+  theme_graph() +
+  theme(legend.position = "none",
+        plot.title = element_text(size = 10, color = 'black', family="Helvetica")) +
+  labs(title = "All countries - 2014") 
+```
+##################3 END MAIN 2014 #################
+
+
+####################  MAIN 2015 #######################
+```{r}
+df15<- join.panel1 %>% 
+  select(ccode1, ccode2, inw.direct.15)
+ct15 <- unique(df15$ccode1) %>% as.data.frame()
+Sys.time()
+for (country in ct15[,1]) {
+  a<-df15 %>% filter(ccode1==country) %>% select(ccode2)
+  comp_set <- setdiff(ct15[,1], a[,1])
+  for (country1 in comp_set){
+    df15[nrow(df15)+1,]<-c(country, country1, NA)
+    }
+}
+Sys.time()
+
+
+df15.mt <- df15 %>%
+  spread(ccode2, inw.direct.15, drop=FALSE, fill=NA) %>%
+  data.matrix()
+
+rownames(df15.mt) <- sort(ct15[,1])
+df15.mt <- df15.mt[,-1]
+df15.mt[is.na(df15.mt)] <- 0
+diag(df15.mt) <- NA
+isSymmetric(df15.mt)
+#df15.mt <- df15.mt[,-c(65,73,97:100,106)]
+ ##drop column 78 and 113: the two underdeveloped countries that show up, making the matrix not squared
+write.csv(df15.mt, "~/Desktop/MRP/1.Data for rmd3/mt15.csv")
+
+
+#######
+df15.2<- join.panel1 %>% 
+  select(ccode1, ccode2, net.inw.15) 
+
+
+ct15.2 <- unique(df15.2$ccode1) %>% as.data.frame()
+Sys.time()
+for (country in ct15.2[,1]) {
+  a<-df15.2 %>% filter(ccode1==country) %>% select(ccode2)
+  comp_set <- setdiff(ct15.2[,1], a[,1])
+  for (country1 in comp_set){
+    df15.2[nrow(df15.2)+1,]<-c(country, country1, NA)
+    }
+}
+Sys.time()
+
+
+df15.2.mt <- df15.2 %>%
+  spread(ccode2, net.inw.15, drop=FALSE, fill=NA) %>%
+  data.matrix()
+
+rownames(df15.2.mt) <- sort(ct15.2[,1])
+cntr.for.color.15 <- as.numeric(rownames(df15.2.mt))
+df15.2.mt <- df15.2.mt[,-1]
+df15.2.mt[is.na(df15.2.mt)] <- 0
+diag(df15.2.mt) <- NA
+isSymmetric(df15.2.mt)
+#df15.2.mt <- df15.2.mt[,-c(65,73,97:100,106)]
+#####
+
+g.15 <- igraph::graph_from_adjacency_matrix(as.matrix(df15.mt), mode="directed", diag=FALSE, weighted=TRUE)
+
+#plot(df1.t, vertex.size = igraph::V(df1.t)$size.inw)
+igraph::V(g.15)$inw <- rowSums(df15.2.mt, na.rm=TRUE) #+ abs(min(rowSums(df2.mt, na.rm=TRUE)))+1)
+igraph::V(g.15)$inw[igraph::V(g.15)$inw<0] <- 0
+igraph::E(g.15)$weight[igraph::E(g.15)$weight<0] <- 0
+igraph::V(g.15)$size.in <- igraph::degree(g.15, mode = "in")
+igraph::V(g.15)$size.out <- igraph::degree(g.15, mode = "out")
+igraph::V(g.15)$eigen <- igraph::evcent(g.15, directed=TRUE, weights=E(g.15)$weight)$vector
+
+
+iso3c.3<-as.data.frame(igraph::V(g.15)$name)
+iso3c.3<-iso3c.3 %>% 
+  mutate(cc=countrycode(sourcevar = as.character(igraph::V(g.15)$name), origin = "imf", destination = "iso3c", nomatch = NULL)) %>% 
+  select(cc)
+igraph::V(g.15)$names <- as.array(iso3c.3[,1])
+
+igraph::V(g.15)$color <- ifelse(cntr.for.color.15 %in% dvl.cntr, 1, 0)
+
+g.15 <- igraph::delete.vertices(g.15 , which(igraph::degree(g.15)==0))
+
+got_palette <- c(
+  "#1A5878", "#C44237", "#AD8941", "#E99093",
+  "#50594B", "#8968CD", "#9ACD32"
+)
+
+library(ggraph)
+par(mfrow=c(1,2))
+ggraph(g.15, layout = "stress") +
+  geom_edge_link0(aes(edge_width = igraph::E(g.15)$weight), edge_colour = adjustcolor(1, alpha.f = 0.15)) +
+  geom_node_point(aes(fill=ifelse(igraph::V(g.15)$color==1, "red", "green"), size = igraph::V(g.15)$inw), stroke=0, shape = 21) +
+  geom_node_text(aes(filter=igraph::V(g.15)$inw>30000, label = names), family = "mono") +
+  scale_fill_manual(values = got_palette) +
+  scale_edge_width(range = c(0.2, 3)) +
+  scale_size(range = c(1, 6)) +
+  theme_graph() +
+  theme(legend.position = "none",
+        plot.title = element_text(size = 10, color = 'black', family="Helvetica")) +
+  labs(title = "All countries - 2015")
+```
+
+################### END MAIN 2015 ######################
+
+
+####################  MAIN 2016 #######################
+```{r}
+df16<- join.panel1 %>% 
+  select(ccode1, ccode2, inw.direct.16)
+ct16 <- unique(df16$ccode1) %>% as.data.frame()
+Sys.time()
+for (country in ct16[,1]) {
+  a<-df16 %>% filter(ccode1==country) %>% select(ccode2)
+  comp_set <- setdiff(ct16[,1], a[,1])
+  for (country1 in comp_set){
+    df16[nrow(df16)+1,]<-c(country, country1, NA)
+    }
+}
+Sys.time()
+
+
+df16.mt <- df16 %>%
+  spread(ccode2, inw.direct.16, drop=FALSE, fill=NA) %>%
+  data.matrix()
+
+rownames(df16.mt) <- sort(ct16[,1])
+df16.mt <- df16.mt[,-1]
+df16.mt[is.na(df16.mt)] <- 0
+diag(df16.mt) <- NA
+isSymmetric(df16.mt)
+#df16.mt <- df16.mt[,-c(65,73,97:100,106)]
+ ##drop column 78 and 113: the two underdeveloped countries that show up, making the matrix not squared
+write.csv(df16.mt, "~/Desktop/MRP/1.Data for rmd3/mt16.csv")
+
+
+#######
+df16.2<- join.panel1 %>% 
+  select(ccode1, ccode2, net.inw.16) 
+ct16.2 <- unique(df16.2$ccode1) %>% as.data.frame()
+Sys.time()
+for (country in ct16.2[,1]) {
+  a<-df16.2 %>% filter(ccode1==country) %>% select(ccode2)
+  comp_set <- setdiff(ct16.2[,1], a[,1])
+  for (country1 in comp_set){
+    df16.2[nrow(df16.2)+1,]<-c(country, country1, NA)
+    }
+}
+Sys.time()
+
+
+df16.2.mt <- df16.2 %>%
+  spread(ccode2, net.inw.16, drop=FALSE, fill=NA) %>%
+  data.matrix()
+
+rownames(df16.2.mt) <- sort(ct16.2[,1])
+cntr.for.color.16 <- as.numeric(rownames(df16.2.mt))
+df16.2.mt <- df16.2.mt[,-1]
+df16.2.mt[is.na(df16.2.mt)] <- 0
+diag(df16.2.mt) <- NA
+isSymmetric(df16.2.mt)
+#df16.2.mt <- df16.2.mt[,-c(65,73,97:100,106)]
+
+
+#####
+g.16 <- igraph::graph_from_adjacency_matrix(as.matrix(df16.mt), mode="directed", diag=FALSE, weighted=TRUE)
+
+#plot(df1.t, vertex.size = igraph::V(df1.t)$size.inw)
+igraph::V(g.16)$inw <- rowSums(df16.2.mt, na.rm=TRUE) #+ abs(min(rowSums(df2.mt, na.rm=TRUE)))+1)
+igraph::V(g.16)$inw[igraph::V(g.16)$inw<0] <- 0
+igraph::E(g.16)$weight[igraph::E(g.16)$weight<0] <- 0
+igraph::V(g.16)$size.in <- igraph::degree(g.16, mode = "in")
+igraph::V(g.16)$size.out <- igraph::degree(g.16, mode = "out")
+igraph::V(g.16)$eigen <- igraph::evcent(g.16, directed=TRUE, weights=E(g.16)$weight)$vector
+
+
+iso3c.16<-as.data.frame(igraph::V(g.16)$name)
+iso3c.16<-iso3c.16 %>% 
+  mutate(cc=countrycode(sourcevar = as.character(igraph::V(g.16)$name), origin = "imf", destination = "iso3c", nomatch = NULL)) %>% 
+  select(cc)
+igraph::V(g.16)$names <- as.array(iso3c.16[,1])
+
+igraph::V(g.16)$color <- ifelse(cntr.for.color.16 %in% dvl.cntr, 1, 0)
+
+g.16 <- igraph::delete.vertices(g.16 , which(igraph::degree(g.16)==0))
+
+got_palette <- c(
+  "#1A5878", "#C44237", "#AD8941", "#E99093",
+  "#50594B", "#8968CD", "#9ACD32"
+)
+
+library(ggraph)
+par(mfrow=c(1,2))
+ggraph(g.16, layout = "stress") +
+  geom_edge_link0(aes(edge_width = igraph::E(g.16)$weight), edge_colour = adjustcolor(1, alpha.f = 0.15)) +
+  geom_node_point(aes(fill=ifelse(igraph::V(g.16)$color==1, "red", "green"), size = igraph::V(g.16)$inw), stroke=0, shape = 21) +
+  geom_node_text(aes(filter=igraph::V(g.16)$inw>30000, label = names), family = "mono") +
+  scale_fill_manual(values = got_palette) +
+  scale_edge_width(range = c(0.2, 3)) +
+  scale_size(range = c(1, 6)) +
+  theme_graph() +
+  theme(legend.position = "none",
+        plot.title = element_text(size = 10, color = 'black', family="Helvetica")) +
+  labs(title = "All countries - 2016")
+```
+################# END MAIN 2016 #####################
+
+
+####################  MAIN 2017 #######################
+```{r}
+df17<- join.panel1 %>% 
+  select(ccode1, ccode2, inw.direct.17)
+ct17 <- unique(df17$ccode1) %>% as.data.frame()
+Sys.time()
+for (country in ct17[,1]) {
+  a<-df17 %>% filter(ccode1==country) %>% select(ccode2)
+  comp_set <- setdiff(ct17[,1], a[,1])
+  for (country1 in comp_set){
+    df17[nrow(df17)+1,]<-c(country, country1, NA)
+    }
+}
+Sys.time()
+
+
+df17.mt <- df17 %>%
+  spread(ccode2, inw.direct.17, drop=FALSE, fill=NA) %>%
+  data.matrix()
+
+rownames(df17.mt) <- sort(ct17[,1])
+df17.mt <- df17.mt[,-1]
+df17.mt[is.na(df17.mt)] <- 0
+diag(df17.mt) <- NA
+isSymmetric(df17.mt)
+#df17.mt <- df17.mt[,-c(65,73,97:100,106)]
+ ##drop column 78 and 113: the two underdeveloped countries that show up, making the matrix not squared
+write.csv(df17.mt, "~/Desktop/MRP/1.Data for rmd3/mt17.csv")
+
+
+#######
+df17.2<- join.panel1 %>% 
+  select(ccode1, ccode2, net.inw.17) 
+ct17.2 <- unique(df17.2$ccode1) %>% as.data.frame()
+Sys.time()
+for (country in ct17.2[,1]) {
+  a<-df17.2 %>% filter(ccode1==country) %>% select(ccode2)
+  comp_set <- setdiff(ct17.2[,1], a[,1])
+  for (country1 in comp_set){
+    df17.2[nrow(df17.2)+1,]<-c(country, country1, NA)
+    }
+}
+Sys.time()
+
+
+df17.2.mt <- df17.2 %>%
+  spread(ccode2, net.inw.17, drop=FALSE, fill=NA) %>%
+  data.matrix()
+
+rownames(df17.2.mt) <- sort(ct17.2[,1])
+cntr.for.color.17 <- as.numeric(rownames(df17.2.mt))
+df17.2.mt <- df17.2.mt[,-1]
+df17.2.mt[is.na(df17.2.mt)] <- 0
+diag(df17.2.mt) <- NA
+isSymmetric(df17.2.mt)
+#df17.2.mt <- df17.2.mt[,-c(65,73,97:100,106)]
+#####
+
+g.17 <- igraph::graph_from_adjacency_matrix(as.matrix(df17.mt), mode="directed", diag=FALSE, weighted=TRUE)
+
+#plot(df1.t, vertex.size = igraph::V(df1.t)$size.inw)
+igraph::V(g.17)$inw <- rowSums(df17.2.mt, na.rm=TRUE) #+ abs(min(rowSums(df2.mt, na.rm=TRUE)))+1)
+igraph::V(g.17)$inw[igraph::V(g.17)$inw<0] <- 0
+igraph::E(g.17)$weight[igraph::E(g.17)$weight<0] <- 0
+igraph::V(g.17)$size.in <- igraph::degree(g.17, mode = "in")
+igraph::V(g.17)$size.out <- igraph::degree(g.17, mode = "out")
+igraph::V(g.17)$eigen <- igraph::evcent(g.17, directed=TRUE, weights=E(g.17)$weight)$vector
+
+
+iso3c.17<-as.data.frame(igraph::V(g.17)$name)
+iso3c.17<-iso3c.17 %>% 
+  mutate(cc=countrycode(sourcevar = as.character(igraph::V(g.17)$name), origin = "imf", destination = "iso3c", nomatch = NULL)) %>% 
+  select(cc)
+igraph::V(g.17)$names <- as.array(iso3c.17[,1])
+
+igraph::V(g.17)$color <- ifelse(cntr.for.color.17 %in% dvl.cntr, 1, 0)
+
+g.17 <- igraph::delete.vertices(g.17 , which(igraph::degree(g.17)==0))
+
+got_palette <- c(
+  "#1A5878", "#C44237", "#AD8941", "#E99093",
+  "#50594B", "#8968CD", "#9ACD32"
+)
+
+library(ggraph)
+par(mfrow=c(1,2))
+ggraph(g.17, layout = "stress") +
+  geom_edge_link0(aes(edge_width = igraph::E(g.17)$weight), edge_colour = adjustcolor(1, alpha.f = 0.15)) +
+  geom_node_point(aes(fill=ifelse(igraph::V(g.17)$color==1, "red", "green"), size = igraph::V(g.17)$inw), stroke=0, shape = 21) +
+  geom_node_text(aes(filter=igraph::V(g.17)$inw>30000, label = names), family = "mono") +
+  scale_fill_manual(values = got_palette) +
+  scale_edge_width(range = c(0.2, 3)) +
+  scale_size(range = c(1, 6)) +
+  theme_graph() +
+  theme(legend.position = "none",
+        plot.title = element_text(size = 10, color = 'black', family="Helvetica")) +
+  labs(title = "All countries - 2017")
+```
+################# END MAIN 2017 #####################
+
+
+
+################### MAIN 2018 ##########################
+```{r}
+df18<- join.panel1 %>% 
+  select(ccode1, ccode2, inw.direct.18)
+ct18 <- unique(df18$ccode1) %>% as.data.frame()
+Sys.time()
+for (country in ct18[,1]) {
+  a<-df18 %>% filter(ccode1==country) %>% select(ccode2)
+  comp_set <- setdiff(ct18[,1], a[,1])
+  for (country1 in comp_set){
+    df18[nrow(df18)+1,]<-c(country, country1, NA)
+    }
+}
+Sys.time()
+
+
+df18.mt <- df18 %>%
+  spread(ccode2, inw.direct.18, drop=FALSE, fill=NA) %>%
+  data.matrix()
+
+rownames(df18.mt) <- sort(ct18[,1])
+df18.mt <- df18.mt[,-1]
+df18.mt[is.na(df18.mt)] <- 0
+diag(df18.mt) <- NA
+isSymmetric(df18.mt)
+#df18.mt <- df18.mt[,-c(65,73,97:100,106)] ##drop column 78 and 113: the two underdeveloped countries that show up, making the matrix not squared
+write.csv(df18.mt, "~/Desktop/MRP/1.Data for rmd3/mt18.csv")
+
+
+#######
+df18.2<- join.panel1 %>% 
+  select(ccode1, ccode2, net.inw18) 
+
+
+ct18.2 <- unique(df18.2$ccode1) %>% as.data.frame()
+Sys.time()
+for (country in ct18.2[,1]) {
+  a<-df18.2 %>% filter(ccode1==country) %>% select(ccode2)
+  comp_set <- setdiff(ct18.2[,1], a[,1])
+  for (country1 in comp_set){
+    df18.2[nrow(df18.2)+1,]<-c(country, country1, NA)
+    }
+}
+Sys.time()
+
+
+df18.2.mt <- df18.2 %>%
+  spread(ccode2, net.inw18, drop=FALSE, fill=NA) %>%
+  data.matrix()
+
+rownames(df18.2.mt) <- sort(ct18.2[,1])
+cntr.for.color.18 <- as.numeric(rownames(df18.2.mt))
+df18.2.mt <- df18.2.mt[,-1]
+df18.2.mt[is.na(df18.2.mt)] <- 0
+diag(df18.2.mt) <- NA
+isSymmetric(df18.2.mt)
+#df18.2.mt <- df18.2.mt[,-c(65,73,97:100,106)]
+#####
+
+g.18 <- igraph::graph_from_adjacency_matrix(as.matrix(df18.mt), mode="directed", diag=FALSE, weighted=TRUE)
+
+#plot(df1.t, vertex.size = igraph::V(df1.t)$size.inw)
+igraph::V(g.18)$inw <- rowSums(df18.2.mt, na.rm=TRUE) #+ abs(min(rowSums(df2.mt, na.rm=TRUE)))+1)
+igraph::V(g.18)$inw[igraph::V(g.18)$inw<0] <- 0
+igraph::E(g.18)$weight[igraph::E(g.18)$weight<0] <- 0
+igraph::V(g.18)$size.in <- igraph::degree(g.18, mode = "in")
+igraph::V(g.18)$size.out <- igraph::degree(g.18, mode = "out")
+igraph::V(g.18)$eigen <- igraph::evcent(g.18, directed=TRUE, weights=E(g.18)$weight)$vector
+
+igraph::V(g.18)$net <- rowSums(df18.2.mt, na.rm=TRUE)
+
+
+#igraph::evcent(df1.t)$vector
+#igraph::V(df1.t)$eigenvector <- igraph::evcent(df1.t)$vector
+iso3c.2<-as.data.frame(igraph::V(g.18)$name)
+iso3c.2<-iso3c.2 %>% 
+  mutate(cc=countrycode(sourcevar = as.character(igraph::V(g.18)$name), origin = "imf", destination = "iso3c", nomatch = NULL)) %>% 
+  select(cc)
+igraph::V(g.18)$names <- as.array(iso3c.2[,1])
+
+igraph::V(g.18)$color <- ifelse(cntr.for.color.18 %in% dvl.cntr, 1, 0)
+igraph::V(g.18)$shape <- rep(NA, length(cntr.for.color.18))
+  
+for (i in 1:length(cntr.for.color.18)){
+  if(cntr.for.color.18[i] %in% asia.cntr){igraph::V(g.18)$shape[i] = 1}
+  else if(cntr.for.color.18[i] %in% africa.cntr){igraph::V(g.18)$shape[i] = 2}
+  else if (cntr.for.color.18[i] %in% latin.cntr){igraph::V(g.18)$shape[i] = 3}
+  else {igraph::V(g.18)$shape[i] = 0}
+}
+
+g.18 <- igraph::delete.vertices(g.18 , which(igraph::degree(g.18)==0))
+
+got_palette <- c(
+  "#1A5878", "#C44237", "#AD8941", "#E99093",
+  "#50594B", "#8968CD", "#9ACD32"
+)
+
+#library(ggraph)
+#par(mfrow=c(1,2))
+ggraph(g.18, layout = "stress") +
+  geom_edge_link0(aes(edge_width = igraph::E(g.18)$weight), edge_colour = adjustcolor(1, alpha.f = 0.15)) +
+  geom_node_point(aes(fill=ifelse(igraph::V(g.18)$color==1, "red", "green"), size = igraph::V(g.18)$inw), stroke=0, shape = 21) +
+  geom_node_text(aes(filter=igraph::V(g.18)$inw>30000, label = names), family = "mono") +
+  scale_fill_manual(values = got_palette) +
+  scale_edge_width(range = c(0.2, 3)) +
+  scale_size(range = c(1, 6)) +
+  theme_graph() +
+  theme(legend.position = "none",
+        plot.title = element_text(size = 10, color = 'black', family="Helvetica")) +
+  labs(title = "All countries - 2018")
+
+#cl_ed_bt <- igraph::cluster_edge_betweenness(g.18)
+#cl_ed_bt[1:7]
+
+#set.seed(77597)
+#LO = layout_with_fr(g, dim=2)
+#plot(g, main="Cluster Edge Betweenness", edge.arrow.size=.2, layout=LO, vertex.color=membership(cl_ed_bt))
+```
+###################### END MAIN 2018 ###############
+
+
+#################### IGRAPH FOR REGIONS #######################
+```{r}
+df18<- join.panel1 %>% 
+  filter(!(ccode1 %in% dvl.cntr)) %>% 
+  filter(!(ccode2 %in% dvl.cntr)) %>% 
+  select(ccode1, ccode2, inw.direct.18)
+ct18 <- unique(df18$ccode1) %>% as.data.frame()
+Sys.time()
+for (country in ct18[,1]) {
+  a<-df18 %>% filter(ccode1==country) %>% select(ccode2)
+  comp_set <- setdiff(ct18[,1], a[,1])
+  for (country1 in comp_set){
+    df18[nrow(df18)+1,]<-c(country, country1, NA)
+    }
+}
+Sys.time()
+
+
+df18.mt <- df18 %>%
+  spread(ccode2, inw.direct.18, drop=FALSE, fill=NA) %>%
+  data.matrix()
+
+rownames(df18.mt) <- sort(ct18[,1])
+df18.mt <- df18.mt[,-1]
+df18.mt[is.na(df18.mt)] <- 0
+diag(df18.mt) <- NA
+isSymmetric(df18.mt)
+#df18.mt <- df18.mt[,-c(65,73,97:100,106)] ##drop column 78 and 113: the two underdeveloped countries that show up, making the matrix not squared
+
+
+#######
+df18.2<- join.panel1 %>% 
+  filter(!(ccode1 %in% dvl.cntr)) %>% 
+  filter(!(ccode2 %in% dvl.cntr)) %>% 
+  select(ccode1, ccode2, net.inw18) 
+
+
+ct18.2 <- unique(df18.2$ccode1) %>% as.data.frame()
+Sys.time()
+for (country in ct18.2[,1]) {
+  a<-df18.2 %>% filter(ccode1==country) %>% select(ccode2)
+  comp_set <- setdiff(ct18.2[,1], a[,1])
+  for (country1 in comp_set){
+    df18.2[nrow(df18.2)+1,]<-c(country, country1, NA)
+    }
+}
+Sys.time()
+
+
+df18.2.mt <- df18.2 %>%
+  spread(ccode2, net.inw18, drop=FALSE, fill=NA) %>%
+  data.matrix()
+
+rownames(df18.2.mt) <- sort(ct18.2[,1])
+cntr.for.color.18 <- as.numeric(rownames(df18.2.mt))
+df18.2.mt <- df18.2.mt[,-1]
+df18.2.mt[is.na(df18.2.mt)] <- 0
+diag(df18.2.mt) <- NA
+isSymmetric(df18.2.mt)
+#df18.2.mt <- df18.2.mt[,-c(65,73,97:100,106)]
+#####
+
+library(network)
+net <- as.network(x = df18.mt, # the network object
+                  directed = TRUE, # specify whether the network is directed
+                  loops = FALSE, # do we allow self ties (should not allow them)
+                  matrix.type = "adjacency" # the type of input
+                  )
+net_density <- network.density(net)
+net_density <- round(net_density,3)
+
+
+g.18 <- igraph::graph_from_adjacency_matrix(as.matrix(df18.mt), mode="directed", diag=FALSE, weighted=TRUE)
+
+#plot(df1.t, vertex.size = igraph::V(df1.t)$size.inw)
+igraph::V(g.18)$inw <- rowSums(df18.2.mt, na.rm=TRUE) #+ abs(min(rowSums(df2.mt, na.rm=TRUE)))+1)
+igraph::V(g.18)$inw[igraph::V(g.18)$inw<0] <- 0
+igraph::E(g.18)$weight[igraph::E(g.18)$weight<0] <- 0
+igraph::V(g.18)$size.in <- igraph::degree(g.18, mode = "in")
+igraph::V(g.18)$size.out <- igraph::degree(g.18, mode = "out")
+igraph::V(g.18)$eigen <- igraph::evcent(g.18, directed=TRUE, weights=E(g.18)$weight)$vector
+
+igraph::V(g.18)$net <- rowSums(df18.2.mt, na.rm=TRUE)
+
+
+#igraph::evcent(df1.t)$vector
+#igraph::V(df1.t)$eigenvector <- igraph::evcent(df1.t)$vector
+iso3c.2<-as.data.frame(igraph::V(g.18)$name)
+iso3c.2<-iso3c.2 %>% 
+  mutate(cc=countrycode(sourcevar = as.character(igraph::V(g.18)$name), origin = "imf", destination = "iso3c", nomatch = NULL)) %>% 
+  select(cc)
+igraph::V(g.18)$names <- as.array(iso3c.2[,1])
+
+igraph::V(g.18)$color <- ifelse(cntr.for.color.18 %in% dvl.cntr, 1, 0)
+igraph::V(g.18)$shape <- rep(NA, length(cntr.for.color.18))
+  
+for (i in 1:length(cntr.for.color.18)){
+  if(cntr.for.color.18[i] %in% asia.cntr){igraph::V(g.18)$shape[i] = 1}
+  else if(cntr.for.color.18[i] %in% africa.cntr){igraph::V(g.18)$shape[i] = 2}
+  else if (cntr.for.color.18[i] %in% latin.cntr){igraph::V(g.18)$shape[i] = 3}
+  else {igraph::V(g.18)$shape[i] = 0}
+}
+
+g.18 <- igraph::delete.vertices(g.18 , which(igraph::degree(g.18)==0))
+
+got_palette <- c(
+  "#1A5878", "#C44237", "#AD8941", "#E99093",
+  "#50594B", "#8968CD", "#9ACD32"
+)
+
+#library(ggraph)
+#par(mfrow=c(1,2))
+ggraph(g.18, layout = "stress") +
+  geom_edge_link0(aes(edge_width = igraph::E(g.18)$weight), edge_colour = adjustcolor(1, alpha.f = 0.15)) +
+  geom_node_point(aes(fill=ifelse(igraph::V(g.18)$color==1, "red", "green"), size = igraph::V(g.18)$inw), stroke=0, shape = 21) +
+  geom_node_text(aes(filter=igraph::V(g.18)$inw>0, label = names), family = "mono") +
+  scale_fill_manual(values = got_palette) +
+  scale_edge_width(range = c(0.2, 3)) +
+  scale_size(range = c(1, 6)) +
+  theme_graph() +
+  theme(legend.position = "none",
+        plot.title = element_text(size = 10, color = 'black', family="Helvetica"),
+        plot.subtitle = element_text(size = 8, color = 'black', family="Helvetica")) +
+  labs(title = "Developing and Under-developed Countries - 2018", subtitle = paste("Density = ",net_density))
+
+ggraph(g.18, layout = "stress") +
+  geom_edge_link0(aes(edge_width = igraph::E(g.18)$weight), edge_colour = adjustcolor(1, alpha.f = 0.15)) +
+  geom_node_point(aes(fill="#50594B", size = igraph::V(g.18)$inw), stroke=0, shape = 21) +
+  geom_node_text(aes(filter=igraph::V(g.18)$inw>0, label = names), family = "mono") +
+#  scale_fill_manual(values = got_palette) +
+  scale_edge_width(range = c(0.2, 3)) +
+  scale_size(range = c(1, 6)) +
+  theme_graph() +
+  theme(legend.position = "none",
+        plot.title = element_text(size = 10, color = 'black', family="Helvetica"),
+        plot.subtitle = element_text(size = 8, color = 'black', family="Helvetica")) +
+  labs(title = "Developed countries - 2018", subtitle = paste("Density = ",net_density))
+```
+
+
+
+
+######## TEST ON SMALL SAMPLE ############
+##```{r}
+dftest<- join.panel1 %>% 
+  filter(inw.direct.09>100000) %>% 
+  select(ccode1, ccode2, inw.direct.09)
+ct.test <- unique(dftest$ccode1) %>% as.data.frame()
+Sys.time()
+for (country in ct.test[,1]) {
+  a<-dftest %>% filter(ccode1==country) %>% select(ccode2)
+  comp_set <- setdiff(ct.test[,1], a[,1])
+  for (country1 in comp_set){
+    dftest[nrow(dftest)+1,]<-c(country, country1, NA)
+    }
+}
+Sys.time()
+
+
+mt.test <- dftest %>%
+  spread(ccode2, inw.direct.09, drop=FALSE, fill=NA) %>%
+  data.matrix()
+
+
+
+rownames(mt.test) <- sort(ct.test[,1])
+mt.test <- mt.test[,-1]
+mt.test[is.na(mt.test)] <- 0
+diag(mt.test) <- NA
+isSymmetric(mt.test)
+mt.test <- mt.test[,-c(15,20,23)]
+
+
+g.test <- igraph::graph_from_adjacency_matrix(as.matrix(mt.test), mode="directed", diag=FALSE, weighted=TRUE)
+
+#igraph::set_vertex_attr(g.test, "size.inw", index = igraph::V(g.test), dftest$inw.direct.09[1:63])
+
+#plot(df1.t, vertex.size = igraph::V(df1.t)$size.inw)
+
+igraph::V(g.test)$size <- igraph::degree(g.test, mode = "in")
+#igraph::evcent(df1.t)$vector
+#igraph::V(df1.t)$eigenvector <- igraph::evcent(df1.t)$vector
+
+
+igraph::V(g.test)$inw <- rowSums(mt.test, na.rm=TRUE)
+g.test <- igraph::delete.vertices(g.test , which(igraph::degree(g)==0))
+
+library(ggraph)
+par(mfrow=c(1,2))
+ggraph(g.test, layout = "stress") +
+  geom_edge_link0(aes(edge_width = igraph::E(g.test)$weight), edge_colour = "grey66") +
+  geom_node_point(aes(size = igraph::V(g.test)$inw), shape = 21) +
+  geom_node_text(aes(label = name), family = "serif") +
+  scale_fill_manual(values = got_palette) +
+  scale_edge_width(range = c(0.2, 3)) +
+  scale_size(range = c(1, 6)) +
+  theme_graph() +
+  theme(legend.position = "none")
+
+dftest1 <- join.panel1 %>% 
+  filter(inw.direct.09>100000) %>% 
+  select(cname1, ccode1, dvl)
+
+igraph::V(g.test)$color <- dftest1 %>% mutate(dvl.indicator=ifelse(cname1 %in% dvl.cntr, 1, 0)) %>% select(dvl.indicator)
+
+ggraph(g.test, layout = "stress") +
+  geom_edge_link0(aes(edge_width = igraph::E(g.test)$weight), edge_colour = "grey66") +
+  geom_node_point(aes(fill=ifelse(igraph::V(g.test)$color==1, "red", "green"), size = igraph::V(g.test)$inw), shape = 21) +
+  geom_node_text(aes(label = name), family = "serif") +
+  scale_fill_manual(values = got_palette) +
+  scale_edge_width(range = c(0.2, 3)) +
+  scale_size(range = c(1, 6)) +
+  theme_graph() +
+  theme(legend.position = "none")
+###```
+
+############ HEAT MAP ##############
+```{r}
+#library(gplots)
+#library(reshape2)
+#library(tidygraph)
+#library(scales)
+t <- data.frame (cntr= sort(ct17[,1]),
+                 y2009=igraph::V(g.09)$size.out,
+                 y2010=igraph::V(g.10)$size.out,
+                 y2011=igraph::V(g.11)$size.out,
+                 y2012=igraph::V(g.12)$size.out,
+                 y2013=igraph::V(g.13)$size.out,
+                 y2014=igraph::V(g.14)$size.out,
+                 y2015=igraph::V(g.15)$size.out,
+                 y2016=igraph::V(g.16)$size.out,
+                 y2017=igraph::V(g.17)$size.out,
+                 y2018=igraph::V(g.18)$size.out)
+colnames(t)<- c("cntr","2009","2010","2011","2012","2013","2014","2015","2016","2017","2018")
+dvl.t <- t %>% 
+  filter(cntr %in% dvl.cntr) 
+rownames(dvl.t)<- sort(dvl.t$cntr)
+dvl.t<-dvl.t %>% mutate(cntr=countrycode(sourcevar = as.character(cntr), origin = "imf", destination = "country.name", nomatch = NULL))
+rownames(dvl.t) <- dvl.t$cntr
+dvl.t<-dvl.t[,-1]
+dvl.t<-melt(as.matrix(dvl.t))
+dvl.t$Var1 <- as.factor(dvl.t$Var1)
+dvl.t$Var2 <- as.factor(dvl.t$Var2)
+  
+
+not.dvl.t <- t %>% 
+  filter(!(cntr %in% dvl.cntr) )
+rownames(not.dvl.t)<- sort(not.dvl.t$cntr)
+not.dvl.t<-not.dvl.t %>% mutate(cntr=countrycode(sourcevar = as.character(cntr), origin = "imf", destination = "country.name", nomatch = NULL))
+rownames(not.dvl.t) <- not.dvl.t$cntr
+not.dvl.t<-not.dvl.t[,-1]
+not.dvl.t<-melt(as.matrix(not.dvl.t))
+not.dvl.t$Var1 <- as.factor(not.dvl.t$Var1)
+not.dvl.t$Var2 <- as.factor(not.dvl.t$Var2)
+
+afr <- t %>% 
+  filter(cntr %in% africa.cntr)
+rownames(afr)<- sort(afr$cntr)
+afr<-afr %>% mutate(cntr=countrycode(sourcevar = as.character(cntr), origin = "imf", destination = "country.name", nomatch = NULL))
+rownames(afr) <- afr$cntr
+afr<-afr[,-1]
+afr<-melt(as.matrix(afr))
+afr$Var1 <- as.factor(afr$Var1)
+afr$Var2 <- as.factor(afr$Var2)
+
+asia <- t %>% 
+  filter(cntr %in% asia.cntr)
+rownames(asia)<- sort(asia$cntr)
+asia<-asia %>% mutate(cntr=countrycode(sourcevar = as.character(cntr), origin = "imf", destination = "country.name", nomatch = NULL))
+rownames(asia) <- asia$cntr
+asia<-asia[,-1]
+asia<-melt(as.matrix(asia))
+asia$Var1 <- as.factor(asia$Var1)
+asia$Var2 <- as.factor(asia$Var2)
+
+latin <- t %>% 
+  filter(cntr %in% latin.cntr)
+rownames(latin)<- sort(latin$cntr)
+latin<-latin %>% mutate(cntr=countrycode(sourcevar = as.character(cntr), origin = "imf", destination = "country.name", nomatch = NULL))
+rownames(latin) <- latin$cntr
+latin<-latin[,-1]
+latin<-melt(as.matrix(latin))
+latin$Var1 <- as.factor(latin$Var1)
+latin$Var2 <- as.factor(latin$Var2)
+
+#chi.ind <- t %>% 
+#  filter(cntr %in% china.india)
+#rownames(chi.ind)<- sort(chi.ind$cntr)
+#chi.ind<-chi.ind %>% mutate(cntr=countrycode(sourcevar = as.character(cntr), origin = "imf", destination = "country.name", nomatch = NULL))
+#rownames(chi.ind) <- chi.ind$cntr
+#chi.ind<-chi.ind[,-1]
+#chi.ind<-melt(as.matrix(chi.ind))
+#chi.ind$Var1 <- as.factor(chi.ind$Var1)
+#chi.ind$Var2 <- as.factor(chi.ind$Var2)
+
+par(mfrow=c(2,3))
+ggplot(dvl.t, aes(Var2, Var1)) +
+  geom_tile(aes(fill = value)) +
+ scale_fill_gradient(low = "white", high = tidyquant::palette_light()[[2]],
+                     limits=c(0,150))+
+  labs(title = "Developed countries",
+       x = "",
+       y = "")
+ggplot(not.dvl.t, aes(Var2, Var1)) +
+  geom_tile(aes(fill = value)) +
+ scale_fill_gradient(low = "white", high = tidyquant::palette_light()[[2]], 
+                     limits=c(0,150)) +
+  labs(title = "Developing and Under-developed countries",
+       x = "",
+       y = "")
+ggplot(afr, aes(Var2, Var1)) +
+  geom_tile(aes(fill = value)) +
+ scale_fill_gradient(low = "white", high = tidyquant::palette_light()[[2]],
+                     limits=c(0,150)) +
+  labs(title = "Africa",
+       x = "",
+       y = "")
+ggplot(asia, aes(Var2, Var1)) +
+  geom_tile(aes(fill = value)) +
+ scale_fill_gradient(low = "white", high = tidyquant::palette_light()[[2]],
+                     limits=c(0,150)) +
+  labs(title = "Asia",
+       x = "",
+       y = "")
+ggplot(latin, aes(Var2, Var1)) +
+  geom_tile(aes(fill = value)) +
+ scale_fill_gradient(low = "white", high = tidyquant::palette_light()[[2]],
+                     limits=c(0,150)) +
+  labs(title = "Latin America and Caribbean",
+       x = "",
+       y = "")
+#ggplot(chi.ind, aes(Var2, Var1)) +
+#  geom_tile(aes(fill = value)) +
+# scale_fill_gradient(low = "white", high = tidyquant::palette_light()[[2]]) +
+#  labs(title = "china and India",
+#       x = "",
+#      y = "")
+
+```
+
+
+```{r}
+e <- data.frame (cntr= sort(ct17[,1]),
+                 y2009=igraph::V(g.09)$eigen,
+                 y2010=igraph::V(g.10)$eigen,
+                 y2011=igraph::V(g.11)$eigen,
+                 y2012=igraph::V(g.12)$eigen,
+                 y2013=igraph::V(g.13)$eigen,
+                 y2014=igraph::V(g.14)$eigen,
+                 y2015=igraph::V(g.15)$eigen,
+                 y2016=igraph::V(g.16)$eigen,
+                 y2017=igraph::V(g.17)$eigen,
+                 y2018=igraph::V(g.18)$eigen)
+colnames(t)<- c("cntr","2009","2010","2011","2012","2013","2014","2015","2016","2017","2018")
+dvl.e <- e %>% 
+  filter(cntr %in% dvl.cntr) 
+rownames(dvl.e)<- sort(dvl.e$cntr)
+dvl.e<-dvl.e %>% mutate(cntr=countrycode(sourcevar = as.character(cntr), origin = "imf", destination = "country.name", nomatch = NULL))
+#dvl.e<-dvl.e %>% mutate(cntr=countrycode(sourcevar = as.character(cntr), origin = "imf", destination = "iso3c", nomatch = NULL))
+rownames(dvl.e) <- dvl.e$cntr
+dvl.e<-dvl.e[,-1]
+dvl.e<-melt(as.matrix(dvl.e))
+dvl.e$Var1 <- as.factor(dvl.e$Var1)
+dvl.e$Var2 <- as.factor(dvl.e$Var2)
+  
+
+not.dvl.e <- e %>% 
+  filter(!(cntr %in% dvl.cntr) )
+rownames(not.dvl.e)<- sort(not.dvl.e$cntr)
+not.dvl.e<-not.dvl.e %>% mutate(cntr=countrycode(sourcevar = as.character(cntr), origin = "imf", destination = "country.name", nomatch = NULL))
+rownames(not.dvl.e) <- not.dvl.e$cntr
+not.dvl.e<-not.dvl.e[,-1]
+not.dvl.e<-melt(as.matrix(not.dvl.e))
+not.dvl.e$Var1 <- as.factor(not.dvl.e$Var1)
+not.dvl.e$Var2 <- as.factor(not.dvl.e$Var2)
+
+afr.e <- e %>% 
+  filter(cntr %in% africa.cntr)
+rownames(afr.e)<- sort(afr.e$cntr)
+afr.e<-afr.e %>% mutate(cntr=countrycode(sourcevar = as.character(cntr), origin = "imf", destination = "country.name", nomatch = NULL))
+rownames(afr.e) <- afr.e$cntr
+afr.e<-afr.e[,-1]
+afr.e<-melt(as.matrix(afr.e))
+afr.e$Var1 <- as.factor(afr.e$Var1)
+afr.e$Var2 <- as.factor(afr.e$Var2)
+
+asia.e <- e %>% 
+  filter(cntr %in% asia.cntr)
+rownames(asia.e)<- sort(asia.e$cntr)
+asia.e<-asia.e %>% mutate(cntr=countrycode(sourcevar = as.character(cntr), origin = "imf", destination = "country.name", nomatch = NULL))
+rownames(asia.e) <- asia.e$cntr
+asia.e<-asia.e[,-1]
+asia.e<-melt(as.matrix(asia.e))
+asia.e$Var1 <- as.factor(asia.e$Var1)
+asia.e$Var2 <- as.factor(asia.e$Var2)
+
+latin.e <- e %>% 
+  filter(cntr %in% latin.cntr)
+rownames(latin.e)<- sort(latin.e$cntr)
+latin.e<-latin.e %>% mutate(cntr=countrycode(sourcevar = as.character(cntr), origin = "imf", destination = "country.name", nomatch = NULL))
+rownames(latin.e) <- latin.e$cntr
+latin.e<-latin.e[,-1]
+latin.e<-melt(as.matrix(latin.e))
+latin.e$Var1 <- as.factor(latin.e$Var1)
+latin.e$Var2 <- as.factor(latin.e$Var2)
+
+#chi.ind <- t %>% 
+#  filter(cntr %in% china.india)
+#rownames(chi.ind)<- sort(chi.ind$cntr)
+#chi.ind<-chi.ind %>% mutate(cntr=countrycode(sourcevar = as.character(cntr), origin = "imf", destination = "country.name", nomatch = NULL))
+#rownames(chi.ind) <- chi.ind$cntr
+#chi.ind<-chi.ind[,-1]
+#chi.ind<-melt(as.matrix(chi.ind))
+#chi.ind$Var1 <- as.factor(chi.ind$Var1)
+#chi.ind$Var2 <- as.factor(chi.ind$Var2)
+
+par(mfrow=c(2,3))
+ggplot(dvl.e, aes(Var2, Var1)) +
+  geom_tile(aes(fill = value)) +
+ scale_fill_gradient(low = "white", high = tidyquant::palette_light()[[2]],
+                     limits=c(0,1.5))+
+  labs(title = "Developed countries",
+       x = "",
+       y = "") + theme(
+  axis.title.x = element_text(color = "blue", size = 5, face = "bold"),
+  axis.title.y = element_text(color = "#993333", size = 10, face = "bold")
+)
+ggplot(not.dvl.e, aes(Var2, Var1)) +
+  geom_tile(aes(fill = value)) +
+ scale_fill_gradient(low = "white", high = tidyquant::palette_light()[[2]],
+                     limits=c(0,1.5)) +
+  labs(title = "Developing countries",
+       x = "",
+       y = "") 
+ggplot(afr.e, aes(Var2, Var1)) +
+  geom_tile(aes(fill = value)) +
+ scale_fill_gradient(low = "white", high = tidyquant::palette_light()[[2]],
+                     limits=c(0,1.5)) +
+  labs(title = "Africa",
+       x = "",
+       y = "")
+ggplot(asia.e, aes(Var2, Var1)) +
+  geom_tile(aes(fill = value)) +
+ scale_fill_gradient(low = "white", high = tidyquant::palette_light()[[2]],
+                     limits=c(0,1.5)) +
+  labs(title = "Asia",
+       x = "",
+       y = "") + theme(
+  axis.title.x = element_text(color = "blue", size = 5, face = "bold"),
+  axis.title.y = element_text(color = "#993333", size = 10, face = "bold")
+)
+ggplot(latin.e, aes(Var2, Var1)) +
+  geom_tile(aes(fill = value)) +
+ scale_fill_gradient(low = "white", high = tidyquant::palette_light()[[2]],
+                     limits=c(0,1.5)) +
+  labs(title = "Latin America and Caribbean",
+       x = "",
+       y = "")
+#ggplot(chi.ind, aes(Var2, Var1)) +
+#  geom_tile(aes(fill = value)) +
+# scale_fill_gradient(low = "white", high = tidyquant::palette_light()[[2]]) +
+#  labs(title = "china and India",
+#       x = "",
+#      y = "")
+```
+
+```{r}
+i <- data.frame (cntr= sort(ct17[,1]),
+                 y2009=igraph::V(g.09)$size.in,
+                 y2010=igraph::V(g.10)$size.in,
+                 y2011=igraph::V(g.11)$size.in,
+                 y2012=igraph::V(g.12)$size.in,
+                 y2013=igraph::V(g.13)$size.in,
+                 y2014=igraph::V(g.14)$size.in,
+                 y2015=igraph::V(g.15)$size.in,
+                 y2016=igraph::V(g.16)$size.in,
+                 y2017=igraph::V(g.17)$size.in,
+                 y2018=igraph::V(g.18)$size.in)
+colnames(i)<- c("cntr","2009","2010","2011","2012","2013","2014","2015","2016","2017","2018")
+dvl.i <- i %>% 
+  filter(cntr %in% dvl.cntr) 
+rownames(dvl.i)<- sort(dvl.i$cntr)
+dvl.i<-dvl.i %>% mutate(cntr=countrycode(sourcevar = as.character(cntr), origin = "imf", destination = "country.name", nomatch = NULL))
+rownames(dvl.i) <- dvl.i$cntr
+dvl.i<-dvl.i[,-1]
+dvl.i<-melt(as.matrix(dvl.i))
+dvl.i$Var1 <- as.factor(dvl.i$Var1)
+dvl.i$Var2 <- as.factor(dvl.i$Var2)
+  
+
+not.dvl.i <- i %>% 
+  filter(!(cntr %in% dvl.cntr) )
+rownames(not.dvl.i)<- sort(not.dvl.i$cntr)
+not.dvl.i<-not.dvl.i %>% mutate(cntr=countrycode(sourcevar = as.character(cntr), origin = "imf", destination = "country.name", nomatch = NULL))
+rownames(not.dvl.i) <- not.dvl.i$cntr
+not.dvl.i<-not.dvl.i[,-1]
+not.dvl.i<-melt(as.matrix(not.dvl.i))
+not.dvl.i$Var1 <- as.factor(not.dvl.i$Var1)
+not.dvl.i$Var2 <- as.factor(not.dvl.i$Var2)
+
+afr.i <- i %>% 
+  filter(cntr %in% africa.cntr)
+rownames(afr.i)<- sort(afr.i$cntr)
+afr.i<-afr.i %>% mutate(cntr=countrycode(sourcevar = as.character(cntr), origin = "imf", destination = "country.name", nomatch = NULL))
+rownames(afr.i) <- afr.i$cntr
+afr.i<-afr.i[,-1]
+afr.i<-melt(as.matrix(afr.i))
+afr.i$Var1 <- as.factor(afr.i$Var1)
+afr.i$Var2 <- as.factor(afr.i$Var2)
+
+asia.i <- i %>% 
+  filter(cntr %in% asia.cntr)
+rownames(asia.i)<- sort(asia.i$cntr)
+asia.i<-asia.i %>% mutate(cntr=countrycode(sourcevar = as.character(cntr), origin = "imf", destination = "country.name", nomatch = NULL))
+rownames(asia.i) <- asia.i$cntr
+asia.i<-asia.i[,-1]
+asia.i<-melt(as.matrix(asia.i))
+asia.i$Var1 <- as.factor(asia.i$Var1)
+asia.i$Var2 <- as.factor(asia.i$Var2)
+
+latin.i <- i %>% 
+  filter(cntr %in% latin.cntr)
+rownames(latin.i)<- sort(latin.i$cntr)
+latin.i<-latin.i %>% mutate(cntr=countrycode(sourcevar = as.character(cntr), origin = "imf", destination = "country.name", nomatch = NULL))
+rownames(latin.i) <- latin.i$cntr
+latin.i<-latin.i[,-1]
+latin.i<-melt(as.matrix(latin.i))
+latin.i$Var1 <- as.factor(latin.i$Var1)
+latin.i$Var2 <- as.factor(latin.i$Var2)
+
+#chi.ind <- t %>% 
+#  filter(cntr %in% china.india)
+#rownames(chi.ind)<- sort(chi.ind$cntr)
+#chi.ind<-chi.ind %>% mutate(cntr=countrycode(sourcevar = as.character(cntr), origin = "imf", destination = "country.name", nomatch = NULL))
+#rownames(chi.ind) <- chi.ind$cntr
+#chi.ind<-chi.ind[,-1]
+#chi.ind<-melt(as.matrix(chi.ind))
+#chi.ind$Var1 <- as.factor(chi.ind$Var1)
+#chi.ind$Var2 <- as.factor(chi.ind$Var2)
+
+par(mfrow=c(2,3))
+ggplot(dvl.i, aes(Var2, Var1)) +
+  geom_tile(aes(fill = value)) +
+ scale_fill_gradient(low = "white", high = tidyquant::palette_light()[[2]],limits=c(0,150))+
+  labs(title = "Developed countries",
+       x = "",
+       y = "")
+ggplot(not.dvl.i, aes(Var2, Var1)) +
+  geom_tile(aes(fill = value)) +
+ scale_fill_gradient(low = "white", high = tidyquant::palette_light()[[2]],limits=c(0,150)) +
+  labs(title = "Developing and Under-developed countries",
+       x = "",
+       y = "")
+ggplot(afr.i, aes(Var2, Var1)) +
+  geom_tile(aes(fill = value)) +
+ scale_fill_gradient(low = "white", high = tidyquant::palette_light()[[2]],limits=c(0,150)) +
+  labs(title = "Africa",
+       x = "",
+       y = "")
+ggplot(asia.i, aes(Var2, Var1)) +
+  geom_tile(aes(fill = value)) +
+ scale_fill_gradient(low = "white", high = tidyquant::palette_light()[[2]],limits=c(0,150)) +
+  labs(title = "Asia",
+       x = "",
+       y = "")
+ggplot(latin.i, aes(Var2, Var1)) +
+  geom_tile(aes(fill = value)) +
+ scale_fill_gradient(low = "white", high = tidyquant::palette_light()[[2]],limits=c(0,150)) +
+  labs(title = "Latin America and Caribbean",
+       x = "",
+       y = "")
+```
+
+
+

@@ -1,0 +1,279 @@
+---
+title: "Network_paper2"
+author: "Van Tong"
+date: "13/04/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+```
+
+```{r}
+Capita_formation <- read.csv("~/Desktop/MRP/API_NE.GDI.TOTL.CD_DS2_en_csv_v2_3931394/Capita_formation.csv", stringsAsFactors=TRUE)
+GDP_data <- read.csv("~/Desktop/MRP/API_NY.GDP.MKTP.CD_DS2_en_csv_v2_3930485 2/GDP_data.csv", stringsAsFactors=TRUE)
+Population_data <- read.csv("~/Desktop/MRP/Population_data.csv", stringsAsFactors=TRUE)
+```
+
+```{r}
+capital_data <- Capita_formation %>% 
+  select(Country.Code, X2009:X2018) %>% 
+  as.matrix()
+rownames(capital_data) <- capital_data[,1]
+capital_data <- capital_data[,-1]
+class(capital_data) <- "numeric"
+
+population_data <- Population_data %>% 
+  select(Country.Code, X2009:X2018) %>% 
+  as.matrix()
+rownames(population_data) <- population_data[,1]
+population_data <- population_data[,-1] 
+class(population_data) <- "numeric"
+
+gdp_data<- GDP_data %>% 
+  select(Country.Code, X2009:X2018) %>% 
+  as.matrix()
+rownames(gdp_data) <- gdp_data[,1]
+gdp_data <- gdp_data[,-1] 
+class(gdp_data) <- "numeric"
+
+
+gdp_perc_data<- gdp_data/population_data
+cap_perc_data<- capital_data/population_data
+
+#### 
+library(mFilter)
+alpha=0.3
+productivity<-(gdp_perc_data/(cap_perc_data)^alpha)^(1/(1-alpha))
+
+
+
+hp.productivity<-matrix(NA, nrow=nrow(productivity), ncol=ncol(productivity))
+for (i in 1:nrow(productivity)) {
+        hp.productivity[i,]<-hpfilter(productivity[i,],freq=1600,type=c("lambda","frequency"),drift=FALSE)$trend[,1]
+}
+colnames(hp.productivity) <- colnames(productivity)
+
+produc_dt<-data.frame(Capita_formation$Country.Code, hp.productivity) %>%
+  mutate(us.indicator=ifelse(Capita_formation.Country.Code=="USA", 1, 0))
+
+g_star = (produc_dt$X2018[produc_dt$us.indicator==1] / produc_dt$X2009[produc_dt$us.indicator==1])^(1/ncol(capital_data))
+
+hp.produc.df<- data.frame(Capita_formation$Country.Code,hp.productivity ) 
+pi <- hp.produc.df %>% 
+  mutate(pi_18= (X2018/(X2009*(g_star^ncol(hp.productivity)))) - 1 )%>% 
+  select(Capita_formation.Country.Code, pi_18)
+                 ##productivity catch for only year2018
+                
+```
+
+```{r}
+net09 <- read.csv("~/Desktop/MRP/net09.csv", stringsAsFactors=TRUE)
+
+net18 <- read.csv("~/Desktop/MRP/net18.csv", stringsAsFactors=TRUE)
+
+
+net09 <- net09 %>% 
+  select(-X) %>% 
+  rename(Capita_formation.Country.Code = cc,
+         net.inw.09 = igraph..V.g.09..net)
+net18 <- net18 %>% 
+  select(-X) %>% 
+  rename(Capita_formation.Country.Code = cc,
+         net.inw.18 = igraph..V.g.18..net)
+
+pi <- left_join(pi, net09, by="Capita_formation.Country.Code")
+pi <- left_join(pi, net18, by="Capita_formation.Country.Code")
+
+
+dvl.cntr <- countrycode(c(171, 193, 156, 128, 176, 436, 158, 542, 196, 142, 576, 144, 146, 528, 112, 111, 124, 184, 122, 172, 174, 132, 178, 136, 137, 138, 182, 184, 918, 960, 935, 423, 939, 944, 941, 946, 181, 964, 968, 936, 961, 134), origin = "imf", destination = "iso3c")
+
+under.dvl <- countrycode(unique(c(614, 638, 748, 618, 626, 628, 632, 636, 611, 644, 648, 642, 654, 666, 668, 674, 676, 678, 682, 688, 692, 714, 722, 724, 732, 742, 746, 738, 754, 522, 544, 518, 513, 514, 558, 474, 263, 818, 299, 857, 856, 352, 733, 873, 528, 351, 920, 849, 851, 863, 363, 696, 967, 333, 354, 314, 353, 352, 312, 357, 871, 865, 814, 815, 323, 113, 329, 823, 187, 117, 954, 967, 349, 546, 911, 912, 913, 916, 962)), origin = "imf", destination = "iso3c")
+
+africa.cntr<-countrycode(unique(c(612, 469, 682, 686, 732, 744, 622, 626, 628, 634, 642, 646, 618, 632, 634, 611, 644, 664, 674, 714, 746, 738, 614, 616, 666, 676, 684, 688, 728, 199, 754, 698, 638, 748, 624, 662, 648, 652, 656, 654, 668, 692, 694, 722, 724, 742)), origin = "imf", destination = "iso3c")
+## asia with china and india
+asia.cntr<- countrycode(unique(c(516, 522, 532, 536, 544, 548, 948, 518, 566, 542, 576, 528, 578, 582, 513, 514, 429, 556, 558, 564, 524, 419, 433, 436, 439, 443, 446, 449, 453, 456, 463, 186, 466, 474, 924, 534, 158, 193, 196)), origin = "imf", destination = "iso3c")
+# china and india
+china.india <- c(924, 534)
+# latin america and caribbean
+latin.cntr <- countrycode(unique(c(313, 316, 339, 243, 336, 343, 366, 369, 238, 253, 258, 263, 268, 273, 283, 213, 218, 223, 228, 233, 248, 288, 293, 298, 299)), origin = "imf", destination = "iso3c")
+
+asia.less.china.india<- countrycode(unique(c(516, 522, 532, 536, 544, 548, 948, 518, 566, 542, 576, 528, 578, 582, 513, 514, 429, 556, 558, 564, 524, 419, 433, 436, 439, 443, 446, 449, 453, 456, 463, 186, 466, 474)), origin = "imf", destination = "iso3c")
+
+asia.less.dvl.cntr <- countrycode(c("516", "522","532", "536" ,"544","548", "948", "518" ,"566" ,"578", "582", "513" ,"514" ,"429" ,"556" ,"558",
+"564" ,"524" ,"419" ,"433" ,"439" ,"443", "446" ,"449" ,"453", "456" ,"463" ,"186" ,"466" ,"474" ,"924" ,"534"), origin = "imf", destination = "iso3c")
+
+pi$gdp09<-GDP_data$X2009/1000000
+
+pi <- pi %>% 
+  mutate(delta.d = (net.inw.18-net.inw.09)/gdp09,
+  dvl.indicator=ifelse(Capita_formation.Country.Code %in% dvl.cntr, 1, 0))
+
+
+pi.not.dvl <- pi %>% 
+  filter(!(Capita_formation.Country.Code %in% dvl.cntr)) %>% 
+  filter(!(Capita_formation.Country.Code %in% c("AND", "BRB")))
+
+ggplot(pi.not.dvl, aes(x= pi_18, y= delta.d, label=Capita_formation.Country.Code)) +
+geom_point(size = 1,alpha = 0.6) +
+theme_bw()+
+geom_text(aes(label=Capita_formation.Country.Code),hjust=0, vjust=0, size=2.5)+
+   geom_hline(aes(yintercept=0), linetype=2)+
+   geom_vline(aes(xintercept=0), linetype=2)+
+   labs(x="Productivity Catch-up", y="Net Capital Inflow (normalized by GDP)", title="Developing and Under-developed Countries") 
+
+pi.dvl <- pi %>% 
+  filter(Capita_formation.Country.Code %in% dvl.cntr) 
+
+ggplot(pi.dvl, aes(x= pi_18, y= delta.d, label=Capita_formation.Country.Code)) +
+geom_point(size = 1,alpha = 0.6) +
+theme_bw()+
+geom_text(aes(label=Capita_formation.Country.Code),hjust=0, vjust=0, size=2.5)+
+   geom_hline(aes(yintercept=0), linetype=2)+
+   geom_vline(aes(xintercept=0), linetype=2)+
+   labs(x="Productivity Catch-up", y="Net Capital Inflow (normalized by GDP)", title="Developed Countries") 
+
+pi.developing <- pi %>% 
+  filter(!(Capita_formation.Country.Code %in% dvl.cntr)) %>% 
+  filter(!(Capita_formation.Country.Code %in% under.dvl))
+
+ggplot(pi.developing, aes(x= pi_18, y= delta.d, label=Capita_formation.Country.Code)) +
+geom_point(size = 1,alpha = 0.6) +
+theme_bw()+
+geom_text(aes(label=Capita_formation.Country.Code),hjust=0, vjust=0, size=2.5)+
+   geom_hline(aes(yintercept=0), linetype=2)+
+   geom_vline(aes(xintercept=0), linetype=2)+
+   labs(x="Productivity Catch-up", y="Net Capital Inflow (normalized by GDP)", title="Developing Countries") 
+
+pi.under <- pi %>% 
+  filter(Capita_formation.Country.Code %in% under.dvl) 
+
+ggplot(pi.under, aes(x= pi_18, y= delta.d, label=Capita_formation.Country.Code)) +
+geom_point(size = 1,alpha = 0.6) +
+theme_bw()+
+geom_text(aes(label=Capita_formation.Country.Code),hjust=0, vjust=0, size=2.5)+
+   geom_hline(aes(yintercept=0), linetype=2)+
+   geom_vline(aes(xintercept=0), linetype=2)+
+   labs(x="Productivity Catch-up", y="Net Capital Inflow (normalized by GDP)", title="Under-developed Countries") 
+
+pi.africa <- pi %>% 
+  filter(Capita_formation.Country.Code %in% africa.cntr)
+ggplot(pi.africa, aes(x= pi_18, y= delta.d, label=Capita_formation.Country.Code)) +
+geom_point(size = 1,alpha = 0.6) +
+theme_bw()+
+geom_text(aes(label=Capita_formation.Country.Code),hjust=0, vjust=0, size=2.5)+
+   geom_hline(aes(yintercept=0), linetype=2)+
+   geom_vline(aes(xintercept=0), linetype=2)+
+   labs(x="Productivity Catch-up", y="Net Capital Inflow (normalized by GDP)", title="Africa") 
+
+pi.asia <- pi %>% 
+  filter(Capita_formation.Country.Code %in% asia.cntr) 
+ggplot(pi.asia, aes(x= pi_18, y= delta.d, label=Capita_formation.Country.Code, color=dvl.indicator)) +
+geom_point(size = 1,alpha = 0.6) +
+theme_bw()+
+geom_text(aes(label=Capita_formation.Country.Code),hjust=0, vjust=0, size=2.5)+
+   geom_hline(aes(yintercept=0), linetype=2)+
+   geom_vline(aes(xintercept=0), linetype=2)+
+   labs(x="Productivity Catch-up", y="Net Capital Inflow (normalized by GDP)", title="Asia") +
+  theme(legend.position = "none")
+
+pi.latin <- pi %>% 
+  filter(Capita_formation.Country.Code %in% latin.cntr) 
+ggplot(pi.latin, aes(x= pi_18, y= delta.d, label=Capita_formation.Country.Code)) +
+geom_point(size = 1,alpha = 0.6) +
+theme_bw()+
+geom_text(aes(label=Capita_formation.Country.Code),hjust=0, vjust=0, size=2.5)+
+   geom_hline(aes(yintercept=0), linetype=2)+
+   geom_vline(aes(xintercept=0), linetype=2)+
+   labs(x="Productivity Catch-up", y="Net Capital Inflow (normalized by GDP)", title="Latin") +
+  theme(legend.position = "none")
+```
+
+```{r}
+
+
+stat.asia.less.dvl <- pi %>% 
+  filter(Capita_formation.Country.Code %in% asia.less.dvl.cntr) %>% 
+  summarise(mean.a=mean(pi_18, na.rm = TRUE),
+            mean.deltad=mean(delta.d, na.rm = TRUE))
+n.asia.less.dvl=length(pi$Capita_formation.Country.Code[pi$Capita_formation.Country.Code %in% asia.less.dvl.cntr])
+stat.asia.less.dvl<-cbind(stat.asia.less.dvl, n.asia.less.dvl)
+
+
+stat.dvl <- pi %>% 
+  filter(dvl.indicator==1) %>% 
+  summarise(mean.a=mean(pi_18, na.rm = TRUE),
+            mean.deltad=mean(delta.d, na.rm = TRUE))
+n.dvl=length(pi$Capita_formation.Country.Code[pi$dvl.indicator==1])
+stat.dvl<-cbind(stat.dvl, n.dvl)
+
+stat.dvling <- pi %>% 
+  filter(!(Capita_formation.Country.Code %in% dvl.cntr)) %>% 
+  filter(!(Capita_formation.Country.Code %in% under.dvl)) %>% 
+  summarise(mean.a=mean(pi_18, na.rm = TRUE),
+            mean.deltad=mean(delta.d, na.rm = TRUE))
+n.dvling=length(pi$Capita_formation.Country.Code[!(pi$Capita_formation.Country.Code %in% c(under.dvl, dvl.cntr))])
+stat.dvling<-cbind(stat.dvling, n.dvling)
+
+stat.under.dvling <- pi %>% 
+  filter(Capita_formation.Country.Code %in% under.dvl) %>% 
+  summarise(mean.a=mean(pi_18, na.rm = TRUE),
+            mean.deltad=mean(delta.d, na.rm = TRUE))
+n.under=length(pi$Capita_formation.Country.Code[pi$Capita_formation.Country.Code %in% under.dvl])
+stat.under.dvling<-cbind(stat.under.dvling, n.under)
+
+
+stat.asia <- pi %>% 
+  filter(Capita_formation.Country.Code %in% asia.cntr) %>% 
+  summarise(mean.a=mean(pi_18, na.rm = TRUE),
+            mean.deltad=mean(delta.d, na.rm = TRUE))
+n.asia=length(pi$Capita_formation.Country.Code[pi$Capita_formation.Country.Code %in% asia.cntr])
+stat.asia<-cbind(stat.asia, n.asia)
+
+stat.afri <- pi %>% 
+  filter(Capita_formation.Country.Code %in% africa.cntr) %>% 
+  summarise(mean.a=mean(pi_18, na.rm = TRUE),
+            mean.deltad=mean(delta.d, na.rm = TRUE))
+n.afri=length(pi$Capita_formation.Country.Code[pi$Capita_formation.Country.Code %in% africa.cntr])
+stat.afri<-cbind(stat.afri, n.afri)
+
+
+stat.latin <- pi %>% 
+  filter(Capita_formation.Country.Code %in% latin.cntr) %>% 
+  summarise(mean.a=mean(pi_18, na.rm = TRUE),
+            mean.deltad=mean(delta.d, na.rm = TRUE))
+n.latin=length(pi$Capita_formation.Country.Code[pi$Capita_formation.Country.Code %in% latin.cntr])
+stat.latin<-cbind(stat.latin, n.latin)
+
+
+stat.list<-list(stat.dvl, stat.dvling, stat.under.dvling, stat.asia, stat.afri, stat.latin)
+stat.table<-stat.list %>% reduce(full_join, by=c("mean.a", "mean.deltad"))
+
+
+stat.table<-matrix(NA, nrow = 6, ncol = 3)
+stat.table[1,]<-c(stat.dvl[1,1], stat.dvl[1,2], stat.dvl[1,3])
+stat.table[2,]<-c(stat.dvling[1,1], stat.dvling[1,2], stat.dvling[1,3])
+stat.table[3,]<-c(stat.under.dvling[1,1], stat.under.dvling[1,2], stat.under.dvling[1,3])
+stat.table[4,]<-c(stat.asia[1,1], stat.asia[1,2], stat.asia[1,3])
+stat.table[5,]<-c(stat.afri[1,1], stat.afri[1,2], stat.afri[1,3])
+stat.table[6,]<-c(stat.latin[1,1], stat.latin[1,2], stat.latin[1,3])
+rownames(stat.table)<-c("Developed Countries", "Developing Countries", "Under-developed Countries", "Asia", "Africa", "Latin")
+colnames(stat.table)<-c("Catch-up", "Capital inflows", "Obs.")
+
+library(stargazer)
+stargazer(stat.table, 
+  title="Summary Statistics: Productivity Catch-up and Capital Inflows between 2009 and 2018"
+
+  
+```
+
+```{r}
+
+pi2<- pi %>% 
+  na.omit() %>% 
+  select(Capita_formation.Country.Code, pi_18) %>% 
+  mutate(pi.positive = ifelse(pi_18>=0, 1, 0))
+```
+
